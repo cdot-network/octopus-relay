@@ -2,6 +2,8 @@ import React, { useCallback, useState } from "react";
 
 import { Button, Modal, Form, Input } from "antd";
 
+import TokenBadge from "../../components/TokenBadge";
+
 function StakeModal({ visible, appchainId, onCancel, onOk }): React.ReactElement {
   const [isSubmiting, setIsSubmiting] = useState<boolean>(false);
 
@@ -22,7 +24,7 @@ function StakeModal({ visible, appchainId, onCancel, onOk }): React.ReactElement
           <Input placeholder="please input your account on the appchain"/>
         </Form.Item>
         <Form.Item name="stakeBalance" label="Stake Balance">
-          <Input placeholder="The amount you want to stake for" type="number" addonAfter="Ⓝ" />
+          <Input placeholder="The amount you want to stake for" type="number" addonAfter={<TokenBadge />} />
         </Form.Item>
         <Form.Item wrapperCol={{ offset: 8, span: 16 }}>
           <Button type="primary" htmlType="submit" loading={isSubmiting}>Stake</Button>

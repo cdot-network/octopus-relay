@@ -9,6 +9,8 @@ import Big from 'big.js';
 import RegisterModal from "./RegisterModal";
 import StakeModal from "./StakeModal";
 
+import TokenBadge from "../../components/TokenBadge";
+
 const BOATLOAD_OF_GAS = Big(3).times(10 ** 13).toFixed();
 
 function Home(): React.ReactElement {
@@ -33,7 +35,6 @@ function Home(): React.ReactElement {
     {
       title: "ID",
       dataIndex: "id",
-      key: "id",
       render: (text) => {
         return (
           <Link to={`/appchain/${text}`}>{text}</Link>
@@ -43,12 +44,10 @@ function Home(): React.ReactElement {
     {
       title: "Name",
       dataIndex: "appchain_name",
-      key: "appchainName"
     },
     {
       title: "Founder",
       dataIndex: "founder_id",
-      key: "founderId"
     },
     // {
     //   title: "Runtime",
@@ -61,23 +60,22 @@ function Home(): React.ReactElement {
     //   }
     // },
     {
-      title: "Staked",
-      dataIndex: "staked_balance",
-      key: "stakedBalance",
+      title: "Bonded",
+      dataIndex: "bond_balance",
       render: (value) => {
         return (
-          <span>{Big(value).div(10 ** 24).toFixed()} Ⓝ</span>
+          <span>{ value } 
+          <TokenBadge />
+          </span>
         )
       }
     },
     {
       title: "Status",
-      dataIndex: "status",
-      key: "status"
+      dataIndex: "status"
     },
     {
       title: "Action",
-      dataIndex: "action",
       key: "action",
       render: (text, fields) => {
         return (
@@ -110,13 +108,11 @@ function Home(): React.ReactElement {
     setIsLoadingOverview(true);
     Promise.all([
         window.contract.get_num_appchains(),
-        window.contract.get_num_validators(),
         window.contract.get_total_staked_balance()
       ])
-      .then(([num_appchains, num_validators, staked_balance]) => {
+      .then(([num_appchains, staked_balance]) => {
         setIsLoadingOverview(false);
         setNumberAppchains(num_appchains);
-        setNumberValidators(num_validators);
         setStakedBalance(Big(staked_balance).div(10 ** 24).toFixed());
         return window.contract.get_appchains({from_index: 0, limit: num_appchains});
       })
@@ -126,7 +122,8 @@ function Home(): React.ReactElement {
           const t2 = {}
           Object.assign(t2, { id }, item);
           t.push(t2);
-        })
+        });
+        
         setAppchains(t);
         setIsLoadingList(false);
       })
@@ -143,16 +140,17 @@ function Home(): React.ReactElement {
   }, []);
 
   const onRegister = function(values) {
-    const { appchainName, runtimeURL, runtimeHash, stakeBalance } = values;
-   
+    const { appchainName, runtimeURL, runtimeHash, bondBalance } = values;
+    
     window.contract.register_appchain(
       {
         appchain_name: appchainName,
         runtime_url: runtimeURL,
         runtime_hash: runtimeHash,
+        bond_balance: bondBalance,
       },
       BOATLOAD_OF_GAS,
-      Big(stakeBalance).times(10 ** 24).toFixed()
+      0
     ).then(() => {
       setRegisterModalVisible(false);
     }).catch((err) => {
@@ -163,14 +161,15 @@ function Home(): React.ReactElement {
 
   const onStake = function(values) {
     const { appchainId, appchainAccount, stakeBalance } = values;
-
+    
     window.contract.stake_to_be_validator(
       {
         appchain_id: appchainId,
         appchain_account: appchainAccount,
+        amount: stakeBalance,
       },
       BOATLOAD_OF_GAS,
-      Big(stakeBalance).times(10 ** 24).toFixed()
+      0
     ).then(() => {
       setStakeModalVisible(false);
     }).catch((err) => {
@@ -189,7 +188,7 @@ function Home(): React.ReactElement {
             <Statistic title="Total Validators" value={numberValidators} />
           </Col>
           <Col span={8}>
-            <Statistic title="Total Staked Balance" value={stakedBalance} suffix="Ⓝ" />
+            <Statistic title="Total Staked Balance" value={stakedBalance} suffix={<TokenBadge />} />
           </Col>
         </Row>
       </Card>
@@ -198,7 +197,7 @@ function Home(): React.ReactElement {
           isSignedIn &&
           <Button type="primary" onClick={toggleRegisterModalVisible} icon={<PlusOutlined />}>Register</Button>
         }>
-          <Table columns={columns} loading={isLoadingList} dataSource={appchains} />
+          <Table rowKey={(record) => record.id} columns={columns} loading={isLoadingList} dataSource={appchains} />
         </Card>
       </div>
       <RegisterModal visible={registerModalVisible} onCancel={toggleRegisterModalVisible} onOk={onRegister} />

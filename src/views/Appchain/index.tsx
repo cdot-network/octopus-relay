@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { useParams } from 'react-router-dom';
 import { Card, Descriptions, message, Table } from "antd";
 
+import TokenBadge from "../../components/TokenBadge";
+
 import Big from 'big.js';
 
 function Appchain(): React.ReactElement {
@@ -12,13 +14,17 @@ function Appchain(): React.ReactElement {
   const [appchain, setAppchain] = useState<any>();
 
   const [isLoadingValidators, setIsLoadingValidators] = useState<boolean>(false);
-  const [validators, setValidators] = useState<any>();
+  const [appchainCurrValidatorSetIdx, setAppchainCurrValidatorSetIdx] = useState<number>(0);
+  const [validatorSet, setValidatorSet] = useState<any>();
 
   const columns = [
     {
       title: "Validator",
-      dataIndex: "account_id",
-      key: "account_id"
+      dataIndex: "id",
+    },
+    {
+      title: "Appchain Account",
+      dataIndex: "ocw_id",
     },
     {
       title: "Staked Balance",
@@ -26,7 +32,7 @@ function Appchain(): React.ReactElement {
       key: "staked_balance",
       render: (value) => {
         return (
-          <span>{Big(value).div(10 ** 24).toFixed()} Ⓝ</span>
+          <span>{value} <TokenBadge /></span>
         );
       }
     }
@@ -38,20 +44,24 @@ function Appchain(): React.ReactElement {
     if (!isNaN(id as any)) {
       appchainId = +id;
     }
-    window.contract.get_appchain({ id: appchainId })
-      .then(appchain => {
-        setIsLoading(false);
-        setAppchain(appchain);
-        getValidators(appchainId);
-      });
+    Promise.all([
+      window.contract.get_appchain({ appchain_id: appchainId }),
+      window.contract.get_curr_validator_set_index({ appchain_id: appchainId })
+    ]).then(([appchain, idx]) => {
+      setIsLoading(false);
+      setAppchain(appchain);
+      setAppchainCurrValidatorSetIdx(idx);
+      getValidators(appchainId, idx);
+    });
   }, [id]);
 
-  const getValidators = function(id) {
+  const getValidators = function(appchaiId, idx) {
     setIsLoadingValidators(true);
-    window.contract.get_appchain_validators({ id })
-      .then(validators => {
+    window.contract.get_validator_set({ appchain_id: appchaiId, index: idx })
+      .then(set => {
+        console.log(set);
         setIsLoadingValidators(false);
-        setValidators(validators);
+        setValidatorSet(set);
       })
       .catch(err => {
         setIsLoadingValidators(false);
@@ -69,14 +79,14 @@ function Appchain(): React.ReactElement {
             <Descriptions.Item label="Appchain Name">{appchain.appchain_name}</Descriptions.Item>
             <Descriptions.Item label="Founder">{appchain.founder_id}</Descriptions.Item>
             <Descriptions.Item label="Runtime">{appchain.runtime_url}</Descriptions.Item>
-            <Descriptions.Item label="Staked Balance">{Big(appchain.staked_balance).div(10 ** 24).toFixed()} Ⓝ</Descriptions.Item>
+            <Descriptions.Item label="Bond Balance">{appchain.bond_balance} <TokenBadge /></Descriptions.Item>
             <Descriptions.Item label="Status">{appchain.status}</Descriptions.Item>
           </Descriptions>
         }
       </Card>
       <div style={{marginTop: "15px"}}>
-        <Card title="Validators" loading={isLoading || isLoadingValidators}>
-          <Table columns={columns} dataSource={validators} pagination={false} />
+        <Card title={<span>Validators (Validator Set Index: {appchainCurrValidatorSetIdx})</span>} loading={isLoading || isLoadingValidators}>
+          <Table columns={columns} rowKey={record => record.id} dataSource={validatorSet?.validators} pagination={false} />
         </Card>
       </div>
     </div>

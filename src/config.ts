@@ -1,3 +1,4 @@
+
 function getConfig(env, CONTRACT_NAME) {
   switch (env) {
 
@@ -20,6 +21,7 @@ function getConfig(env, CONTRACT_NAME) {
       walletUrl: 'https://wallet.testnet.near.org',
       helperUrl: 'https://helper.testnet.near.org',
       explorerUrl: 'https://explorer.testnet.near.org',
+      tokenContract: "dev-1615435740118-2637667"
     }
   case 'betanet':
     return {

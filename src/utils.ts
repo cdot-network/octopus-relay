@@ -24,11 +24,17 @@ export async function initContract() {
   window.contract = await new Contract(window.walletConnection.account(), nearConfig.contractName, {
     // View methods are read only. They don't modify the state, but usually return some value.
     viewMethods: [
-      'get_appchain', 'get_num_appchains', 'get_num_validators', 
-      'get_appchains', 'get_appchain_validators', 'get_total_staked_balance',
+      'get_appchain', 'get_num_appchains', 'get_curr_validator_set_index', 
+      'get_appchains', 'get_total_staked_balance', 'get_validator_set',
     ],
     // Change methods can modify the state. But you don't receive the returned value when called.
     changeMethods: ['register_appchain', 'stake_to_be_validator'],
+  })
+
+  window.tokenContract = await new Contract(window.walletConnection.account(), nearConfig.tokenContract, {
+    viewMethods: [
+      'get_balance'
+    ]
   })
 }
 

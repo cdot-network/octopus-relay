@@ -12,6 +12,7 @@ declare global {
     accountId: string;
     walletConnection: any;
     contract: any;
+    tokenContract: any;
   } 
 }
 
