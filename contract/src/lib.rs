@@ -359,7 +359,7 @@ impl OctopusRelay {
                 let mut validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
 
                 // remove this validator from the appchain's validator set
-                validator_set.validators.retain(|v| v.id == account_id);
+                validator_set.validators.retain(|v| v.id != account_id);
                 
                 let next_idx = appchain_curr_validator_set_idx + 1;
                 validator_set.validator_set_index = next_idx;
