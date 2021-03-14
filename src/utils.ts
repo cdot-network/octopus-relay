@@ -20,6 +20,8 @@ export async function initContract() {
   // Getting the Account ID. If still unauthorized, it's just empty string
   window.accountId = window.walletConnection.getAccountId()
 
+  window.contractName = nearConfig.contractName
+
   // Initializing our contract APIs by contract name and configuration
   window.contract = await new Contract(window.walletConnection.account(), nearConfig.contractName, {
     // View methods are read only. They don't modify the state, but usually return some value.
@@ -28,13 +30,14 @@ export async function initContract() {
       'get_appchains', 'get_total_staked_balance', 'get_validator_set',
     ],
     // Change methods can modify the state. But you don't receive the returned value when called.
-    changeMethods: ['register_appchain', 'stake_to_be_validator'],
+    changeMethods: ['register_appchain', 'stake', 'unstake'],
   })
 
   window.tokenContract = await new Contract(window.walletConnection.account(), nearConfig.tokenContract, {
     viewMethods: [
-      'get_balance'
-    ]
+      'get_balance', 'get_allowance',
+    ],
+    changeMethods: ['inc_allowance'],
   })
 }
 

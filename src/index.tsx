@@ -10,6 +10,7 @@ import { initContract } from './utils';
 declare global {
   interface Window {
     accountId: string;
+    contractName: string;
     walletConnection: any;
     contract: any;
     tokenContract: any;

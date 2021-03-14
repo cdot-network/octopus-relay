@@ -27,12 +27,11 @@ function Appchain(): React.ReactElement {
       dataIndex: "ocw_id",
     },
     {
-      title: "Staked Balance",
-      dataIndex: "staked_balance",
-      key: "staked_balance",
+      title: "Weight",
+      dataIndex: "weight",
       render: (value) => {
         return (
-          <span>{value} <TokenBadge /></span>
+          <span>{value}</span>
         );
       }
     }
@@ -79,7 +78,7 @@ function Appchain(): React.ReactElement {
             <Descriptions.Item label="Appchain Name">{appchain.appchain_name}</Descriptions.Item>
             <Descriptions.Item label="Founder">{appchain.founder_id}</Descriptions.Item>
             <Descriptions.Item label="Runtime">{appchain.runtime_url}</Descriptions.Item>
-            <Descriptions.Item label="Bond Balance">{appchain.bond_balance} <TokenBadge /></Descriptions.Item>
+            <Descriptions.Item label="Bond Tokens">{appchain.bond_tokens} <TokenBadge /></Descriptions.Item>
             <Descriptions.Item label="Status">{appchain.status}</Descriptions.Item>
           </Descriptions>
         }

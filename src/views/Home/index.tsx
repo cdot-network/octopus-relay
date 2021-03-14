@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Row, Col, Button, Table, Modal, Form, Input, Card, message, Statistic } from "antd";
+import { Row, Col, Button, Table, Modal, Form, Input, Card, message, Statistic, Popconfirm, Spin } from "antd";
 
 import { PlusOutlined } from "@ant-design/icons";
 
@@ -11,7 +11,7 @@ import StakeModal from "./StakeModal";
 
 import TokenBadge from "../../components/TokenBadge";
 
-const BOATLOAD_OF_GAS = Big(3).times(10 ** 13).toFixed();
+const BOATLOAD_OF_GAS = Big(3).times(10 ** 14).toFixed();
 
 function Home(): React.ReactElement {
 
@@ -28,6 +28,8 @@ function Home(): React.ReactElement {
   const [stakedBalance, setStakedBalance] = useState<number>(0);
 
   const [appchains, setAppchains] = useState<any[]>();
+
+  const [unstaking, setUnstaking] = useState<boolean>(false);
 
   const [appchainId, setAppchainId] = useState<number>(0);
 
@@ -61,7 +63,7 @@ function Home(): React.ReactElement {
     // },
     {
       title: "Bonded",
-      dataIndex: "bond_balance",
+      dataIndex: "bond_tokens",
       render: (value) => {
         return (
           <span>{ value } 
@@ -78,16 +80,27 @@ function Home(): React.ReactElement {
       title: "Action",
       key: "action",
       render: (text, fields) => {
+        const { id, curr_validator_set_index, validator_set } = fields;
+        const v_set = validator_set[curr_validator_set_index];
+        console.log(fields);
         return (
           <div>
-            <Button onClick={() => {
-              setAppchainId(fields.id);
-              toggleStakeModalVisible();
-            }}>Stake</Button>
             {
+              v_set.validators.some(v => v.id == window.accountId) ?
+              <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
+                <Button>Unstake</Button> 
+              </Popconfirm>
+              :
+              <Button onClick={() => {
+                setAppchainId(fields.id);
+                toggleStakeModalVisible();
+              }}>Stake</Button>
+            }
+            <span style={{ marginLeft: '10px' }}><Link to={`/appchain/${id}`}>Detail</Link></span>
+            {/* {
               window.accountId && window.accountId == fields.founder_id &&
               <Button type="link" style={{ color: "#f66" }}>Freeze</Button>
-            }
+            } */}
           </div>
           
         );
@@ -108,12 +121,14 @@ function Home(): React.ReactElement {
     setIsLoadingOverview(true);
     Promise.all([
         window.contract.get_num_appchains(),
-        window.contract.get_total_staked_balance()
+        window.tokenContract.get_balance({
+          owner_id: window.contractName
+        })
       ])
-      .then(([num_appchains, staked_balance]) => {
+      .then(([num_appchains, balance]) => {
         setIsLoadingOverview(false);
         setNumberAppchains(num_appchains);
-        setStakedBalance(Big(staked_balance).div(10 ** 24).toFixed());
+        setStakedBalance(balance);
         return window.contract.get_appchains({from_index: 0, limit: num_appchains});
       })
       .then(list => {
@@ -140,19 +155,18 @@ function Home(): React.ReactElement {
   }, []);
 
   const onRegister = function(values) {
-    const { appchainName, runtimeURL, runtimeHash, bondBalance } = values;
-    
+    const { appchainName, runtimeURL, runtimeHash, bondTokenAmount } = values;
     window.contract.register_appchain(
       {
         appchain_name: appchainName,
         runtime_url: runtimeURL,
         runtime_hash: runtimeHash,
-        bond_balance: bondBalance,
+        bond_tokens: bondTokenAmount,
       },
       BOATLOAD_OF_GAS,
-      0
+      0,
     ).then(() => {
-      setRegisterModalVisible(false);
+      window.location.reload();
     }).catch((err) => {
       message.error(err.toString());
     });
@@ -162,7 +176,7 @@ function Home(): React.ReactElement {
   const onStake = function(values) {
     const { appchainId, appchainAccount, stakeBalance } = values;
     
-    window.contract.stake_to_be_validator(
+    window.contract.stake(
       {
         appchain_id: appchainId,
         appchain_account: appchainAccount,
@@ -171,9 +185,28 @@ function Home(): React.ReactElement {
       BOATLOAD_OF_GAS,
       0
     ).then(() => {
-      setStakeModalVisible(false);
+      window.location.reload();
     }).catch((err) => {
       message.error(err.toString());
+      setStakeModalVisible(false);
+    });
+  }
+
+  const unstake = function(appchainId) {
+    setUnstaking(true);
+    window.contract.unstake(
+      {
+        appchain_id: appchainId,
+      },
+      BOATLOAD_OF_GAS,
+      0
+    ).then(() => {
+      setUnstaking(false);
+      window.location.reload();
+    }).catch((err) => {
+      setUnstaking(true);
+      message.error(err.toString());
+      setStakeModalVisible(false);
     });
   }
 
@@ -181,14 +214,14 @@ function Home(): React.ReactElement {
     <>
      <Card>
         <Row gutter={16}>
-          <Col span={8}>
+          <Col span={12}>
             <Statistic title="Total Appchains" value={numberAppchains} />
           </Col>
-          <Col span={8}>
+          {/* <Col span={8}>
             <Statistic title="Total Validators" value={numberValidators} />
-          </Col>
-          <Col span={8}>
-            <Statistic title="Total Staked Balance" value={stakedBalance} suffix={<TokenBadge />} />
+          </Col> */}
+          <Col span={12}>
+            <Statistic title="Relay Balance" value={stakedBalance} suffix={<TokenBadge />} />
           </Col>
         </Row>
       </Card>
@@ -197,7 +230,9 @@ function Home(): React.ReactElement {
           isSignedIn &&
           <Button type="primary" onClick={toggleRegisterModalVisible} icon={<PlusOutlined />}>Register</Button>
         }>
-          <Table rowKey={(record) => record.id} columns={columns} loading={isLoadingList} dataSource={appchains} />
+          <Spin spinning={unstaking}>
+            <Table rowKey={(record) => record.id} columns={columns} loading={isLoadingList} dataSource={appchains} />
+          </Spin>
         </Card>
       </div>
       <RegisterModal visible={registerModalVisible} onCancel={toggleRegisterModalVisible} onOk={onRegister} />
