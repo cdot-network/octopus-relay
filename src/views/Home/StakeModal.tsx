@@ -53,7 +53,7 @@ function StakeModal({ visible, appchainId, onCancel, onOk }): React.ReactElement
           </Button>
         } /> :
         <Form onFinish={onFinish} labelCol={{ span: 8 }} wrapperCol={{ span: 16 }} 
-          initialValues={{ stakeBalance: 10, appchainId }}>
+          initialValues={{ stakeBalance: 100, appchainId }}>
           <Form.Item name="appchainId" label="Appchain Id">
             <Input disabled />
           </Form.Item>

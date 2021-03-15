@@ -24,25 +24,27 @@ function Home(): React.ReactElement {
   const [stakeModalVisible, setStakeModalVisible] = useState<boolean>(false);
 
   const [numberAppchains, setNumberAppchains] = useState<number>(0);
-  const [numberValidators, setNumberValidators] = useState<number>(0);
+  const [miniumStakingAmount, setMiniumStakingAmount] = useState<number>(0);
   const [stakedBalance, setStakedBalance] = useState<number>(0);
+  const [totalBalance, setTotalBalance] = useState<number>(0);
 
   const [appchains, setAppchains] = useState<any[]>();
 
   const [unstaking, setUnstaking] = useState<boolean>(false);
+  const [activing, setActiving] = useState<boolean>(false);
 
   const [appchainId, setAppchainId] = useState<number>(0);
 
   const columns = [
-    {
-      title: "ID",
-      dataIndex: "id",
-      render: (text) => {
-        return (
-          <Link to={`/appchain/${text}`}>{text}</Link>
-        );
-      }
-    },
+    // {
+    //   title: "ID",
+    //   dataIndex: "id",
+    //   render: (text) => {
+    //     return (
+    //       <Link to={`/appchain/${text}`}>{text}</Link>
+    //     );
+    //   }
+    // },
     {
       title: "Name",
       dataIndex: "appchain_name",
@@ -55,11 +57,8 @@ function Home(): React.ReactElement {
       title: "Validators",
       key: "validators",
       render: (_, fields) => {
-        const { validator_set, stake_records } = fields;
-        let lastValidatorSetIdx = Object.keys(validator_set).pop();
-        const vSet = validator_set[lastValidatorSetIdx];
-      
-        return <span>{vSet.validators.length}/{stake_records.length}</span>
+        const { validators } = fields;
+        return <span>{validators.length}</span>
       }
     },
     // {
@@ -91,28 +90,30 @@ function Home(): React.ReactElement {
       title: "Action",
       key: "action",
       render: (text, fields) => {
-        const { id, stake_records } = fields;
+        console.log(fields);
+        const { id, validators, founder_id, status } = fields;
         
         return (
           <div>
             {
+              window.accountId && window.accountId == founder_id && status == "Frozen" && 
+              <Button type="primary" onClick={() => activeAppchain(fields.id)} loading={activing}>Active</Button>
+            }
+            {
               window.accountId && (
-                stake_records.some(r => r.validator.account_id == window.accountId) ?
+                validators.some(v => v.account_id == window.accountId) ?
                 <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
-                  <Button>Unstake</Button> 
+                  <Button type="link" loading={unstaking}>Unstake</Button> 
                 </Popconfirm>
                 :
                 <Button onClick={() => {
                   setAppchainId(fields.id);
                   toggleStakeModalVisible();
-                }}>Stake</Button>
+                }} type="link">Stake</Button>
               )
             }
             <span style={{ marginLeft: '10px' }}><Link to={`/appchain/${id}`}>Detail</Link></span>
-            {/* {
-              window.accountId && window.accountId == fields.founder_id &&
-              <Button type="link" style={{ color: "#f66" }}>Freeze</Button>
-            } */}
+            
           </div>
           
         );
@@ -133,14 +134,16 @@ function Home(): React.ReactElement {
     setIsLoadingOverview(true);
     Promise.all([
         window.contract.get_num_appchains(),
-        window.tokenContract.get_balance({
-          owner_id: window.contractName
-        })
+        window.contract.get_total_staked_balance(),
+        window.contract.get_minium_staking_amount(),
+        window.tokenContract.get_balance({ owner_id: window.contractName })
       ])
-      .then(([num_appchains, balance]) => {
+      .then(([num_appchains, stakedBlance, amount, balance]) => {
         setIsLoadingOverview(false);
         setNumberAppchains(num_appchains);
-        setStakedBalance(balance);
+        setMiniumStakingAmount(amount);
+        setStakedBalance(stakedBlance);
+        setTotalBalance(balance);
         return window.contract.get_appchains({from_index: 0, limit: num_appchains});
       })
       .then(list => {
@@ -217,9 +220,26 @@ function Home(): React.ReactElement {
       setUnstaking(false);
       window.location.reload();
     }).catch((err) => {
-      setUnstaking(true);
+      setUnstaking(false);
       message.error(err.toString());
       setStakeModalVisible(false);
+    });
+  }
+
+  const activeAppchain = function(appchainId) {
+    setActiving(true);
+    window.contract.active_appchain(
+      {
+        appchain_id: appchainId,
+      },
+      BOATLOAD_OF_GAS,
+      0
+    ).then(() => {
+      setActiving(false);
+      window.location.reload();
+    }).catch((err) => {
+      setActiving(false);
+      message.error(err.toString());
     });
   }
 
@@ -227,14 +247,14 @@ function Home(): React.ReactElement {
     <>
      <Card title="Overview">
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={8}>
             <Statistic title="Total Appchains" value={numberAppchains} />
           </Col>
-          {/* <Col span={8}>
-            <Statistic title="Total Validators" value={numberValidators} />
-          </Col> */}
-          <Col span={12}>
-            <Statistic title="Relay Balance" value={stakedBalance} suffix={<TokenBadge />} />
+          <Col span={8}>
+            <Statistic title="Minium Staking Amount" value={miniumStakingAmount} />
+          </Col>
+          <Col span={8}>
+            <Statistic title="Staked / Total Balance"  value={stakedBalance} suffix={<span>/{totalBalance} <TokenBadge /></span>} />
           </Col>
         </Row>
       </Card>

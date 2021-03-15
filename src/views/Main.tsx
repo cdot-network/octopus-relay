@@ -16,6 +16,9 @@ const Footer = styled.div`
     padding: 15px;
     text-align: center;
     color: #9c9c9c;
+    a:hover {
+      text-decoration: underline;
+    }
   }
 `;
 
@@ -30,7 +33,7 @@ function Main(): React.ReactElement {
       </Content>
       <Footer>
         <div className="container">
-          Copyright &copy; 2021 Octopus Network
+          Copyright &copy; 2021 <a href="https://github.com/octopus-network">Octopus Network</a>
         </div>
       </Footer>
     </>
