@@ -57,8 +57,11 @@ function StakeModal({ visible, appchainId, onCancel, onOk }): React.ReactElement
           <Form.Item name="appchainId" label="Appchain Id">
             <Input disabled />
           </Form.Item>
-          <Form.Item name="appchainAccount" label="Appchain Account">
-            <Input placeholder="please input your account on the appchain"/>
+          <Form.Item name="validatorId" label="Validator Id">
+            <Input placeholder="please input your validator id"/>
+          </Form.Item>
+          <Form.Item name="offchainWorkerId" label="Offchain Worker Id">
+            <Input placeholder="please input your offchain worker id"/>
           </Form.Item>
           <Form.Item name="stakeBalance" label="Stake Balance">
             <Input placeholder="The amount you want to stake for" type="number" addonAfter={<TokenBadge />} />

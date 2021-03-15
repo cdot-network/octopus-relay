@@ -20,7 +20,7 @@ const Wrapper = styled.div`
   }
   .logo {
     display: inline-block;
-    width: 150px;
+    width: 120px;
     img {
       display: block;
       width: 100%;

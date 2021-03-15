@@ -11,6 +11,14 @@ const Content = styled.div`
   }
 `;
 
+const Footer = styled.div`
+  .container {
+    padding: 15px;
+    text-align: center;
+    color: #9c9c9c;
+  }
+`;
+
 function Main(): React.ReactElement {
   return (
     <>
@@ -20,6 +28,11 @@ function Main(): React.ReactElement {
           <Outlet />
         </div>
       </Content>
+      <Footer>
+        <div className="container">
+          Copyright &copy; 2021 Octopus Network
+        </div>
+      </Footer>
     </>
   );
 }

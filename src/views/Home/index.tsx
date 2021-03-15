@@ -51,6 +51,17 @@ function Home(): React.ReactElement {
       title: "Founder",
       dataIndex: "founder_id",
     },
+    {
+      title: "Validators",
+      key: "validators",
+      render: (_, fields) => {
+        const { validator_set, stake_records } = fields;
+        let lastValidatorSetIdx = Object.keys(validator_set).pop();
+        const vSet = validator_set[lastValidatorSetIdx];
+      
+        return <span>{vSet.validators.length}/{stake_records.length}</span>
+      }
+    },
     // {
     //   title: "Runtime",
     //   dataIndex: "runtime_url",
@@ -80,21 +91,22 @@ function Home(): React.ReactElement {
       title: "Action",
       key: "action",
       render: (text, fields) => {
-        const { id, curr_validator_set_index, validator_set } = fields;
-        const v_set = validator_set[curr_validator_set_index];
-        console.log(fields);
+        const { id, stake_records } = fields;
+        
         return (
           <div>
             {
-              v_set.validators.some(v => v.id == window.accountId) ?
-              <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
-                <Button>Unstake</Button> 
-              </Popconfirm>
-              :
-              <Button onClick={() => {
-                setAppchainId(fields.id);
-                toggleStakeModalVisible();
-              }}>Stake</Button>
+              window.accountId && (
+                stake_records.some(r => r.validator.account_id == window.accountId) ?
+                <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
+                  <Button>Unstake</Button> 
+                </Popconfirm>
+                :
+                <Button onClick={() => {
+                  setAppchainId(fields.id);
+                  toggleStakeModalVisible();
+                }}>Stake</Button>
+              )
             }
             <span style={{ marginLeft: '10px' }}><Link to={`/appchain/${id}`}>Detail</Link></span>
             {/* {
@@ -138,7 +150,7 @@ function Home(): React.ReactElement {
           Object.assign(t2, { id }, item);
           t.push(t2);
         });
-        
+     
         setAppchains(t);
         setIsLoadingList(false);
       })
@@ -164,7 +176,7 @@ function Home(): React.ReactElement {
         bond_tokens: bondTokenAmount,
       },
       BOATLOAD_OF_GAS,
-      0,
+      Big(3).times(10 ** 22).toFixed(),
     ).then(() => {
       window.location.reload();
     }).catch((err) => {
@@ -174,16 +186,17 @@ function Home(): React.ReactElement {
   }
 
   const onStake = function(values) {
-    const { appchainId, appchainAccount, stakeBalance } = values;
+    const { appchainId, validatorId, offchainWorkerId, stakeBalance } = values;
     
     window.contract.stake(
       {
         appchain_id: appchainId,
-        appchain_account: appchainAccount,
-        amount: stakeBalance,
+        id: validatorId,
+        ocw_id: offchainWorkerId,
+        amount: stakeBalance * 1,
       },
       BOATLOAD_OF_GAS,
-      0
+      Big(3).times(10 ** 22).toFixed(),
     ).then(() => {
       window.location.reload();
     }).catch((err) => {
@@ -212,7 +225,7 @@ function Home(): React.ReactElement {
 
   return (
     <>
-     <Card>
+     <Card title="Overview">
         <Row gutter={16}>
           <Col span={12}>
             <Statistic title="Total Appchains" value={numberAppchains} />

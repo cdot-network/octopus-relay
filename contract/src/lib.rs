@@ -3,11 +3,10 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::{json};
 use std::collections::HashMap;
-use near_sdk::json_types::ValidAccountId;
 
 use near_sdk::{
     wee_alloc, env, near_bindgen, AccountId, 
-    Balance, Gas, Promise, PromiseResult,
+    Balance, PromiseResult, EpochHeight,
 };
 
 #[global_allocator]
@@ -44,9 +43,28 @@ impl Default for AppchainStatus {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
+pub struct Delegation {
+    account_id: String,
+    amount: u64,
+    epoch_height: EpochHeight,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Validator {
-    ocw_id: String,
+    account_id: String,
     id: String,
+    ocw_id: String,
+    weight: u64,
+    staked_amount: u64,
+    delegations: Vec<Delegation>
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StakeRecord {
+    validator: Validator,
+    epoch_height: EpochHeight,
     weight: u64,
 }
 
@@ -68,8 +86,8 @@ pub struct Appchain {
     runtime_hash: String,
     num_validators: u64,
     bond_tokens: u64,
-    curr_validator_set_index: u32,
     validator_set: HashMap<u32, ValidatorSet>,
+    stake_records: Vec<StakeRecord>,
     status: AppchainStatus,
 }
 
@@ -121,6 +139,8 @@ impl OctopusRelay {
     ) {
         let account_id = env::signer_account_id();
 
+        let deposit = env::attached_deposit();
+
         // Cross-contract call to transfer OCT token
         let promise_transfer = env::promise_create(
             TOKEN_ACCOUNT_ID.to_string(),
@@ -130,7 +150,7 @@ impl OctopusRelay {
                 "new_owner_id": env::current_account_id(), 
                 "amount": bond_tokens.to_string()
             }).to_string().as_bytes(),
-            NO_DEPOSIT,
+            deposit,
             SINGLE_CALL_GAS,
         );
 
@@ -183,8 +203,8 @@ impl OctopusRelay {
                     runtime_hash,
                     num_validators: 0,
                     bond_tokens,
-                    curr_validator_set_index: 0,
                     validator_set: validator_hash_map,
+                    stake_records: Vec::default(),
                     status: AppchainStatus::default(),
                 };
 
@@ -224,18 +244,21 @@ impl OctopusRelay {
     // Returns the appchain current validator_set index
     pub fn get_curr_validator_set_index(&self, appchain_id: u32) -> u32 {
         let appchain = self.appchains.get(&appchain_id).expect("Appchain not found");
-        appchain.curr_validator_set_index
+        appchain.validator_set.len() as u32 - 1
     }
 
+    #[payable]
     pub fn stake(
         &mut self, 
         appchain_id: u32, 
-        appchain_account: String,
+        id: String,
+        ocw_id: String,
         amount: u64,
     ) {
         
         let account_id = env::signer_account_id();
-       
+        let deposit = env::attached_deposit();
+
          // Cross-contract call to transfer OCT token
          let promise_transfer = env::promise_create(
             TOKEN_ACCOUNT_ID.to_string(),
@@ -245,7 +268,7 @@ impl OctopusRelay {
                 "new_owner_id": env::current_account_id(), 
                 "amount": amount.to_string(),
             }).to_string().as_bytes(),
-            NO_DEPOSIT,
+            deposit,
             SINGLE_CALL_GAS,
         );
 
@@ -257,7 +280,8 @@ impl OctopusRelay {
             json!({
                 "account_id": account_id,
                 "appchain_id": appchain_id,
-                "appchain_account": appchain_account,
+                "id": id,
+                "ocw_id": ocw_id,
                 "amount": amount,
             }).to_string().as_bytes(),
             NO_DEPOSIT,
@@ -271,7 +295,8 @@ impl OctopusRelay {
         &mut self,
         account_id: AccountId,
         appchain_id: u32, 
-        appchain_account: String,
+        id: String,
+        ocw_id: String,
         amount: u64,
     ) {
         match env::promise_result(0) {
@@ -280,28 +305,36 @@ impl OctopusRelay {
 
                 let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
         
-                let appchain_curr_validator_set_idx = appchain.curr_validator_set_index;
+                let appchain_curr_validator_set_idx = self.get_curr_validator_set_index(appchain_id);
                 let mut validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
                 
-                for v in validator_set.validators.iter() {
-                    assert!(v.id != account_id, "You are already the appchain's validator!");
+                for r in appchain.stake_records.iter() {
+                    assert!(r.validator.account_id != account_id, "You are already staked on the appchain!");
                 }
 
                 let validator = Validator {
-                    id: account_id.clone(),
-                    ocw_id: appchain_account,
-                    weight: amount
+                    account_id: account_id.clone(),
+                    id,
+                    ocw_id,
+                    weight: amount,
+                    staked_amount: amount,
+                    delegations: Vec::default(),
                 };
 
-                validator_set.validators.push(validator);
+                validator_set.validators.push(validator.clone());
 
-                let next_idx = appchain_curr_validator_set_idx + 1;
-                validator_set.validator_set_index = next_idx;
-                appchain.validator_set.insert(next_idx, validator_set);
-                appchain.curr_validator_set_index = next_idx;
+                // Record
+                appchain.stake_records.push(StakeRecord {
+                    validator,
+                    epoch_height: env::epoch_height(),
+                    weight: amount,
+                });
 
                 // Update state
                 self.appchains.insert(appchain_id, appchain);
+
+                // Update validator set
+                self.update_validator_set(appchain_id);
 
             },
             _ => panic!("Transfer token failed"),
@@ -315,10 +348,8 @@ impl OctopusRelay {
         env::log(format!("Account '{}' unstake", account_id).as_bytes());
 
         let appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
-        let appchain_curr_validator_set_idx = appchain.curr_validator_set_index;
-        let validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
-
-        let validator = validator_set.validators.iter().find(|v| v.id == account_id).expect("You are not the appchain's validator");
+     
+        let record = appchain.stake_records.iter().find(|r| r.validator.account_id == account_id).expect("You are not staked on the appchain");
 
          // Cross-contract call to transfer OCT token
         let promise_transfer = env::promise_create(
@@ -327,7 +358,7 @@ impl OctopusRelay {
             json!({ 
                 "owner_id": env::current_account_id(), 
                 "new_owner_id": account_id, 
-                "amount": validator.weight.to_string(),
+                "amount": record.validator.staked_amount.to_string(),
             }).to_string().as_bytes(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
@@ -355,23 +386,66 @@ impl OctopusRelay {
                 env::log(format!("Transfer token successful, start to unstake, account_id: {}", account_id).as_bytes());
                 let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
 
-                let appchain_curr_validator_set_idx = appchain.curr_validator_set_index;
-                let mut validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
+                // Remove the stake record
+                appchain.stake_records.retain(|record| record.validator.account_id != account_id);
 
-                // remove this validator from the appchain's validator set
-                validator_set.validators.retain(|v| v.id != account_id);
-                
-                let next_idx = appchain_curr_validator_set_idx + 1;
-                validator_set.validator_set_index = next_idx;
-                appchain.validator_set.insert(next_idx, validator_set);
-                appchain.curr_validator_set_index = next_idx;
-
-                // update state
                 self.appchains.insert(appchain_id, appchain);
+
+                // Update validator set
+                self.update_validator_set(appchain_id);
             },
             _ => panic!("Transfer token failed"),
         };
         
+    }
+
+    fn update_validator_set(&mut self, appchain_id: u32) {
+        let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
+
+        // Get current validator set
+        let appchain_curr_validator_set_idx = self.get_curr_validator_set_index(appchain_id);
+        let mut validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
+
+        let mut records = appchain.stake_records.clone();
+        let mut changed = false;
+
+        if records.len() < 2 {
+            // Clear the vector
+            if validator_set.validators.len() > 0 {
+                validator_set.validators = vec![];
+                changed = true;
+            } else {
+                return;
+            }
+        } else {
+            records.sort_by(|a, b| b.epoch_height.cmp(&a.epoch_height));
+            records.sort_by(|a, b| b.weight.cmp(&a.weight));
+        }
+        
+        if !changed {
+            if validator_set.validators.len() < 2 {
+                for i in 0..2 {
+                    let tmp_record = records.get(i).unwrap();
+                    validator_set.validators.insert(i, tmp_record.validator.clone());
+                }
+                changed = true;
+            } else {
+                for (i, v) in validator_set.validators.iter_mut().enumerate() {
+                    let tmp_record = records.get(i).unwrap();
+                    if v.account_id != tmp_record.validator.account_id {
+                        *v = tmp_record.validator.clone();
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        if changed {
+            validator_set.validator_set_index += 1;
+            appchain.validator_set.insert(appchain_curr_validator_set_idx + 1, validator_set);
+            self.appchains.insert(appchain_id, appchain);
+        }
+
     }
 
 }

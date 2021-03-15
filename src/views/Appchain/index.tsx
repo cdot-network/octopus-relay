@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 import { useParams } from 'react-router-dom';
-import { Card, Descriptions, message, Table } from "antd";
+import { Card, Descriptions, message, Table, Button } from "antd";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 
 import TokenBadge from "../../components/TokenBadge";
 
@@ -13,18 +14,19 @@ function Appchain(): React.ReactElement {
   
   const [appchain, setAppchain] = useState<any>();
 
-  const [isLoadingValidators, setIsLoadingValidators] = useState<boolean>(false);
-  const [appchainCurrValidatorSetIdx, setAppchainCurrValidatorSetIdx] = useState<number>(0);
+  const [isLoadingValidators, setIsLoadingValidators] = useState<boolean>(true);
+  const [currValidatorSetIdx, setCurrValidatorSetIdx] = useState<number>(0);
+  const [appchainValidatorIdex, setAppchainValidatorIdx] = useState<number>(0);
   const [validatorSet, setValidatorSet] = useState<any>();
 
   const columns = [
     {
-      title: "Validator",
-      dataIndex: "id",
+      title: "Account",
+      dataIndex: "account_id",
     },
     {
-      title: "Appchain Account",
-      dataIndex: "ocw_id",
+      title: "Appchain Validator Id",
+      dataIndex: "id",
     },
     {
       title: "Weight",
@@ -49,8 +51,9 @@ function Appchain(): React.ReactElement {
     ]).then(([appchain, idx]) => {
       setIsLoading(false);
       setAppchain(appchain);
-      setAppchainCurrValidatorSetIdx(idx);
-      getValidators(appchainId, idx);
+      setCurrValidatorSetIdx(idx);
+      setAppchainValidatorIdx(idx);
+      // getValidators(appchainId, idx);
     });
   }, [id]);
 
@@ -58,7 +61,6 @@ function Appchain(): React.ReactElement {
     setIsLoadingValidators(true);
     window.contract.get_validator_set({ appchain_id: appchaiId, index: idx })
       .then(set => {
-        console.log(set);
         setIsLoadingValidators(false);
         setValidatorSet(set);
       })
@@ -67,6 +69,24 @@ function Appchain(): React.ReactElement {
         message.error(err.toString());
       });
   }
+
+  useEffect(() => {
+    if (!appchain) return;
+    getValidators(appchain.id, currValidatorSetIdx);
+  }, [appchain, currValidatorSetIdx]);
+
+  const onPrevIndex = useCallback(() => {
+    if (currValidatorSetIdx > 0) {
+      setCurrValidatorSetIdx(currValidatorSetIdx - 1);
+    }
+  }, [currValidatorSetIdx]);
+
+  const onNextIndex = useCallback(() => {
+    if (!appchain) return;
+    if (currValidatorSetIdx < appchainValidatorIdex) {
+      setCurrValidatorSetIdx(currValidatorSetIdx + 1);
+    }
+  }, [currValidatorSetIdx, appchain]);
 
   return (
     <div>
@@ -84,7 +104,11 @@ function Appchain(): React.ReactElement {
         }
       </Card>
       <div style={{marginTop: "15px"}}>
-        <Card title={<span>Validators (Validator Set Index: {appchainCurrValidatorSetIdx})</span>} loading={isLoading || isLoadingValidators}>
+        <Card title={<span>Validators 
+          <Button type="text" disabled={currValidatorSetIdx <= 0} size="small" icon={<LeftOutlined />} onClick={onPrevIndex} /> 
+            Index: {currValidatorSetIdx} <Button size="small" type="text" onClick={onNextIndex} disabled={currValidatorSetIdx >= appchainValidatorIdex} 
+            icon={<RightOutlined />} /></span>} 
+            loading={isLoading || isLoadingValidators}>
           <Table columns={columns} rowKey={record => record.id} dataSource={validatorSet?.validators} pagination={false} />
         </Card>
       </div>

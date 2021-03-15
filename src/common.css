@@ -21,3 +21,9 @@ body {
   margin: 0 auto;
   box-sizing: border-box;
 }
+
+.ant-table-thead th {
+  color: #9c9c9c!important;
+  font-weight: normal!important;
+  border-bottom: none!important;
+}
