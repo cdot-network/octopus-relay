@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use near_sdk::{
     wee_alloc, env, near_bindgen, AccountId, 
-    Balance, PromiseResult, EpochHeight,
+    Balance, PromiseResult, BlockHeight,
 };
 
 #[global_allocator]
@@ -46,7 +46,7 @@ impl Default for AppchainStatus {
 pub struct Delegation {
     account_id: String,
     amount: u64,
-    epoch_height: EpochHeight,
+    block_height: BlockHeight,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -57,7 +57,7 @@ pub struct Validator {
     ocw_id: String,
     weight: u64,
     staked_amount: u64,
-    epoch_height: EpochHeight,
+    block_height: BlockHeight,
     delegations: Vec<Delegation>
 }
 
@@ -69,7 +69,7 @@ impl Default for Validator {
             ocw_id: String::from(""),
             weight: 0,
             staked_amount: 0,
-            epoch_height: 0,
+            block_height: 0,
             delegations: vec![]
         }
     }
@@ -95,6 +95,7 @@ pub struct Appchain {
     validator_set: HashMap<u32, ValidatorSet>,
     validators: Vec<Validator>,
     status: AppchainStatus,
+    block_height: BlockHeight,
 }
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
@@ -102,7 +103,7 @@ pub struct Appchain {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OctopusRelay {
-    council: Vec<AccountId>,
+    owner: AccountId,
     appchains: HashMap<u32, Appchain>,
     appchain_minium_validators: u32,
     minium_staking_amount: u64,
@@ -119,22 +120,16 @@ impl Default for OctopusRelay {
 impl OctopusRelay {
 
     #[init]
-    pub fn new(council: Vec<AccountId>, appchain_minium_validators: u32, minium_staking_amount: u64) -> Self {
+    pub fn new(owner: AccountId, appchain_minium_validators: u32, minium_staking_amount: u64) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
 
-        let mut octopus_relay = Self {
-            council: Vec::default(),
+        Self {
+            owner,
             appchains: HashMap::default(),
             total_staked_balance: 0,
             appchain_minium_validators,
             minium_staking_amount,
-        };
-
-        for account_id in council {
-            octopus_relay.council.push(account_id);
         }
-
-        octopus_relay
     }
     
     #[payable]
@@ -213,6 +208,7 @@ impl OctopusRelay {
                     validator_set: validator_hash_map,
                     validators: Vec::default(),
                     status: AppchainStatus::default(),
+                    block_height: env::block_index(),
                 };
 
                 self.appchains.insert(appchain_id, appchain);
@@ -330,7 +326,7 @@ impl OctopusRelay {
                     id,
                     ocw_id,
                     weight: amount,
-                    epoch_height: env::epoch_height(),
+                    block_height: env::block_index(),
                     staked_amount: amount,
                     delegations: Vec::default(),
                 });
@@ -516,7 +512,7 @@ impl OctopusRelay {
     }
 
     /*
-        Update validator set, is called after the appchain validators or status update
+        Update validator set, is called after the appchain validators or status updated
     */
     fn update_validator_set(&mut self, appchain_id: u32) -> bool {
         let mut appchain = self.appchains.get(&appchain_id).cloned().unwrap();

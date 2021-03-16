@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 
+import { utils } from 'near-api-js';
 import { useParams } from 'react-router-dom';
 import { Card, Descriptions, message, Table, Button } from "antd";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined, SelectOutlined, CopyOutlined } from "@ant-design/icons";
 
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 import TokenBadge from "../../components/TokenBadge";
-
-import Big from 'big.js';
+import Status from "../../components/Status";
 
 function Appchain(): React.ReactElement {
   const { id } = useParams();
@@ -23,11 +24,29 @@ function Appchain(): React.ReactElement {
     {
       title: "Account",
       dataIndex: "account_id",
+      render: (text) => {
+        return (
+          <a href={`https://explorer.testnet.near.org/accounts/${text}`}>
+            <span style={{ position: "absolute", transform: "rotate(90deg)" }}><SelectOutlined /></span>
+            <span style={{ marginLeft: "20px" }}>{text}</span>
+          </a>
+        );
+      }
     },
     {
       title: "Appchain Validator Id",
       dataIndex: "id",
       key: "id",
+      render: (text) => {
+        return (
+          <CopyToClipboard text={text} onCopy={() => message.info('Validator Id Copied!')}>
+          <div style={{ cursor: "pointer" }}>
+            <span>{text.substr(0,10)}...{text.substr(-10)}</span>
+            <span style={{ marginLeft: "5px", color: "#aaa" }}><CopyOutlined /></span>
+          </div>
+          </CopyToClipboard>
+        );
+      }
     },
     {
       title: "Weight",
@@ -37,7 +56,15 @@ function Appchain(): React.ReactElement {
           <span>{value}</span>
         );
       }
-    }
+    },
+    {
+      title: "Block Height",
+      dataIndex: "block_height",
+      render: (text) => {
+        return <a onClick={() => gotoBlock(text)}>#{text}</a>
+      }
+    },
+    
   ];
 
   useEffect(() => {
@@ -92,18 +119,34 @@ function Appchain(): React.ReactElement {
     }
   }, [currValidatorSetIdx, appchain]);
 
+  const gotoBlock = function(blockId) {
+    utils.web.fetchJson(window.walletConnection._near?.config.nodeUrl, JSON.stringify({
+      "jsonrpc": "2.0",
+      "id": "dontcare",
+      "method": "block", 
+      "params": {
+          "block_id": blockId
+      }
+    })).then(({ result }) => {
+      window.location.href = `https://explorer.testnet.near.org/blocks/${result.header.hash}`;
+    });
+  }
+
   return (
     <div>
-      <Card loading={isLoading}>
+      <Card loading={isLoading} title="Detail">
         {
           appchain !== undefined &&
-          <Descriptions title="Appchain Info" column={2}>
+          <Descriptions column={2}>
             <Descriptions.Item label="Appchain Id">{id}</Descriptions.Item>
+            <Descriptions.Item label="Block Height">
+              <a onClick={() => gotoBlock(appchain.block_height)}>#{appchain.block_height}</a>
+            </Descriptions.Item>
             <Descriptions.Item label="Appchain Name">{appchain.appchain_name}</Descriptions.Item>
             <Descriptions.Item label="Founder">{appchain.founder_id}</Descriptions.Item>
             <Descriptions.Item label="Runtime">{appchain.runtime_url}</Descriptions.Item>
             <Descriptions.Item label="Bond Tokens">{appchain.bond_tokens} <TokenBadge /></Descriptions.Item>
-            <Descriptions.Item label="Status">{appchain.status}</Descriptions.Item>
+            <Descriptions.Item label="Status"><Status type={appchain.status} /></Descriptions.Item>
           </Descriptions>
         }
       </Card>

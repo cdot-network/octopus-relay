@@ -2970,7 +2970,7 @@ copy-descriptor@^0.1.0:
   resolved "https://registry.yarnpkg.com/copy-descriptor/-/copy-descriptor-0.1.1.tgz#676f6eb3c39997c2ee1ac3a924fd6124748f578d"
   integrity sha1-Z29us8OZl8LuGsOpJP1hJHSPV40=
 
-copy-to-clipboard@^3.2.0:
+copy-to-clipboard@^3, copy-to-clipboard@^3.2.0:
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/copy-to-clipboard/-/copy-to-clipboard-3.3.1.tgz#115aa1a9998ffab6196f93076ad6da3b913662ae"
   integrity sha512-i13qo6kIHTTpCm8/Wup+0b1mVWETvu2kIMzKoK8FpkLkFxlt0znUAHcMzox+T8sPlqtZXq3CulEjQHsYiGFJUw==
@@ -7456,7 +7456,7 @@ promise-to-callback@^1.0.0:
     is-fn "^1.0.0"
     set-immediate-shim "^1.0.1"
 
-prop-types@^15.7.2:
+prop-types@^15.5.8, prop-types@^15.7.2:
   version "15.7.2"
   resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.7.2.tgz#52c41e75b8c87e72b9d9360e0206b99dcbffa6c5"
   integrity sha512-8QQikdH7//R2vurIJSutZ1smHYTcLpRWEOlHnzcWHmBYrOGUysKwSsrC89BCiFj3CbrfJ/nXFdJepOVrY1GCHQ==
@@ -7974,6 +7974,14 @@ rc@^1.2.7, rc@^1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
+react-copy-to-clipboard@^5.0.3:
+  version "5.0.3"
+  resolved "https://registry.yarnpkg.com/react-copy-to-clipboard/-/react-copy-to-clipboard-5.0.3.tgz#2a0623b1115a1d8c84144e9434d3342b5af41ab4"
+  integrity sha512-9S3j+m+UxDZOM0Qb8mhnT/rMR0NGSrj9A/073yz2DSxPMYhmYFBMYIdI2X4o8AjOjyFsSNxDRnCX6s/gRxpriw==
+  dependencies:
+    copy-to-clipboard "^3"
+    prop-types "^15.5.8"
+
 react-dom@^17.0.1:
   version "17.0.1"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-17.0.1.tgz#1de2560474ec9f0e334285662ede52dbc5426fc6"
@@ -7982,6 +7990,13 @@ react-dom@^17.0.1:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
     scheduler "^0.20.1"
+
+react-flip-numbers@^3.0.5:
+  version "3.0.5"
+  resolved "https://registry.yarnpkg.com/react-flip-numbers/-/react-flip-numbers-3.0.5.tgz#37fc3f9416575bfb9e9b7af44a7d64aaf922c712"
+  integrity sha512-iOzLaRZbqU7G7A+uE/ySBVzEHr+vZTPMJNP20o1dFUUZ3kkrpTFxpay3+kEVSSzeOXJWQWYDUQOFbv7g/PSf1g==
+  dependencies:
+    react-simple-animate "3.0.2"
 
 react-is@^16.12.0, react-is@^16.7.0, react-is@^16.8.1:
   version "16.13.1"
@@ -8007,6 +8022,11 @@ react-router@6.0.0-beta.0, react-router@^6.0.0-alpha.5:
   integrity sha512-VgMdfpVcmFQki/LZuLh8E/MNACekDetz4xqft+a6fBZvvJnVqKbLqebF7hyoawGrV1HcO5tVaUang2Og4W2j1Q==
   dependencies:
     prop-types "^15.7.2"
+
+react-simple-animate@3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/react-simple-animate/-/react-simple-animate-3.0.2.tgz#67f29b0c64155d2dfd540c1c74f634ef521536a8"
+  integrity sha512-GDpznDMpIHHdH6L6AZo9nNry6Xsq7forKmd6rwigMSuxe4FS9ihK0HSC1odB4WWKbA87S8VL7EVR9JeTRVkbQA==
 
 react@^17.0.1:
   version "17.0.1"

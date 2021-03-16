@@ -12,7 +12,7 @@ const nearConfig = getConfig(
 export async function initContract() {
   // Initialize connection to the NEAR testnet
   const near = await connect(Object.assign({ deps: { keyStore: new keyStores.BrowserLocalStorageKeyStore() } }, nearConfig))
-
+  
   // Initializing Wallet based Account. It can work with NEAR testnet wallet that
   // is hosted at https://wallet.testnet.near.org
   window.walletConnection = new WalletConnection(near)

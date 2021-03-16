@@ -7,7 +7,7 @@ const BOATLOAD_OF_GAS = Big(3).times(10 ** 14).toFixed();
 
 import TokenBadge from "../../components/TokenBadge";
 
-function StakingModal({ visible, appchainId, onCancel, onOk }): React.ReactElement {
+function StakingModal({ visible, appchainId, onCancel }): React.ReactElement {
  
   const [checkingAllowance, setCheckingAllowance] = useState<boolean>(false);
   const [needIncrementsAllowance, setNeedIncrementsAllowance] = useState(false);

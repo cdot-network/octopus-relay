@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Row, Col, Button, Table, Modal, Form, Input, Card, message, Statistic, Popconfirm, Spin } from "antd";
+import { Row, Col, Button, Table, Card, message, Statistic } from "antd";
 
 import { PlusOutlined } from "@ant-design/icons";
 
+import { utils } from 'near-api-js';
 import { Link } from "react-router-dom";
 
 import Big from 'big.js';
@@ -10,6 +11,7 @@ import RegisterModal from "./RegisterModal";
 import StakingModal from "./StakingModal";
 
 import TokenBadge from "../../components/TokenBadge";
+import Status from "../../components/Status";
 
 const BOATLOAD_OF_GAS = Big(3).times(10 ** 14).toFixed();
 
@@ -30,21 +32,11 @@ function Home(): React.ReactElement {
 
   const [appchains, setAppchains] = useState<any[]>();
 
-  const [unstaking, setUnstaking] = useState<boolean>(false);
   const [activing, setActiving] = useState<boolean>(false);
 
   const [appchainId, setAppchainId] = useState<number>(0);
 
   const columns = [
-    // {
-    //   title: "ID",
-    //   dataIndex: "id",
-    //   render: (text) => {
-    //     return (
-    //       <Link to={`/appchain/${text}`}>{text}</Link>
-    //     );
-    //   }
-    // },
     {
       title: "Name",
       dataIndex: "appchain_name",
@@ -61,38 +53,31 @@ function Home(): React.ReactElement {
         return <span>{validators.length}</span>
       }
     },
-    // {
-    //   title: "Runtime",
-    //   dataIndex: "runtime_url",
-    //   key: "runtimeURL",
-    //   render: (text) => {
-    //     return (
-    //       <div style={{ width: "150px" }}>{text}</div>
-    //     );
-    //   }
-    // },
     {
       title: "Bonded",
       dataIndex: "bond_tokens",
       render: (value) => {
         return (
-          <span>{ value } 
-          <TokenBadge />
+          <span>
+            { value } <TokenBadge />
           </span>
         )
       }
     },
     {
       title: "Status",
-      dataIndex: "status"
+      dataIndex: "status",
+      render: (text) => {
+        return (
+          <Status type={text} />
+        );
+      }
     },
     {
       title: "Action",
       key: "action",
       render: (text, fields) => {
-        console.log(fields);
         const { id, validators, founder_id, status } = fields;
-        
         return (
           <div>
             {
@@ -104,25 +89,11 @@ function Home(): React.ReactElement {
                   <Button type="primary" onClick={() => activeAppchain(fields.id)} loading={activing}>Active</Button>
                 ) :
                 <Button onClick={() => { setAppchainId(fields.id); toggleStakingModalVisible(); }} type="link">Staking</Button>
-                // (
-                //   validators.some(v => v.account_id == window.accountId) ?
-                //   (
-                //     <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
-                //       <Button type="link" loading={unstaking}>Unstake</Button> 
-                //     </Popconfirm>
-                //   ) :
-                //   <Button onClick={() => {
-                //     setAppchainId(fields.id);
-                //     toggleStakingModalVisible();
-                //   }} type="link">Stake</Button>
-                // )
+             
               )
             }
-            
             <span style={{ marginLeft: '10px' }}><Link to={`/appchain/${id}`}>Detail</Link></span>
-            
           </div>
-          
         );
       }
     }
@@ -171,9 +142,34 @@ function Home(): React.ReactElement {
       })
   }, []);
 
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [currBlock, setCurrBlock] = useState<number>(0);
+
   // initialize
   useEffect(() => {
     getAppchains();
+
+    let timer = setInterval(() => {
+      if (isFetching) return false;
+      setIsFetching(true);
+      utils.web.fetchJson(window.walletConnection._near?.config.nodeUrl, JSON.stringify({
+        "jsonrpc": "2.0",
+        "id": "dontcare",
+        "method": "block", 
+        "params": {
+            "finality": "final"
+        }
+      })).then(({ result }) => {
+        setCurrBlock(result.header.height);
+      }).finally(() => {
+        setIsFetching(false);
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer)
+    };
+
   }, []);
 
   const onRegister = function(values) {
@@ -193,44 +189,6 @@ function Home(): React.ReactElement {
       message.error(err.toString());
     });
 
-  }
-
-  const onStaking = function(values) {
-    const { appchainId, validatorId, offchainWorkerId, stakeBalance } = values;
-    
-    window.contract.stake(
-      {
-        appchain_id: appchainId,
-        id: validatorId,
-        ocw_id: offchainWorkerId,
-        amount: stakeBalance * 1,
-      },
-      BOATLOAD_OF_GAS,
-      Big(3).times(10 ** 22).toFixed(),
-    ).then(() => {
-      window.location.reload();
-    }).catch((err) => {
-      message.error(err.toString());
-      setStakingModalVisible(false);
-    });
-  }
-
-  const unstake = function(appchainId) {
-    setUnstaking(true);
-    window.contract.unstake(
-      {
-        appchain_id: appchainId,
-      },
-      BOATLOAD_OF_GAS,
-      0
-    ).then(() => {
-      setUnstaking(false);
-      window.location.reload();
-    }).catch((err) => {
-      setUnstaking(false);
-      message.error(err.toString());
-      setStakingModalVisible(false);
-    });
   }
 
   const activeAppchain = function(appchainId) {
@@ -258,10 +216,10 @@ function Home(): React.ReactElement {
             <Statistic title="Total Appchains" value={numberAppchains} />
           </Col>
           <Col span={8}>
-            <Statistic title="Minium Staking Amount" value={miniumStakingAmount} />
+            <Statistic title="Staked / Total Balance"  value={stakedBalance} suffix={<span>/{totalBalance} <TokenBadge /></span>} />
           </Col>
           <Col span={8}>
-            <Statistic title="Staked / Total Balance"  value={stakedBalance} suffix={<span>/{totalBalance} <TokenBadge /></span>} />
+            <Statistic title="Block Height" value={currBlock} />
           </Col>
         </Row>
       </Card>
@@ -270,13 +228,11 @@ function Home(): React.ReactElement {
           isSignedIn &&
           <Button type="primary" onClick={toggleRegisterModalVisible} icon={<PlusOutlined />}>Register</Button>
         }>
-          <Spin spinning={unstaking}>
-            <Table rowKey={(record) => record.id} columns={columns} loading={isLoadingList} dataSource={appchains} />
-          </Spin>
+          <Table rowKey={(record) => record.id} columns={columns} loading={isLoadingList} dataSource={appchains} />
         </Card>
       </div>
       <RegisterModal visible={registerModalVisible} onCancel={toggleRegisterModalVisible} onOk={onRegister} />
-      <StakingModal appchainId={appchainId} visible={stakingModalVisible} onCancel={toggleStakingModalVisible} onOk={onStaking} />
+      <StakingModal appchainId={appchainId} visible={stakingModalVisible} onCancel={toggleStakingModalVisible} />
     </>
   );
 }
