@@ -1,4 +1,4 @@
-Cdot Relay
+Octopus Relay
 ==========
 
 Quick Start

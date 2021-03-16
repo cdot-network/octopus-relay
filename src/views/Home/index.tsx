@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 
 import Big from 'big.js';
 import RegisterModal from "./RegisterModal";
-import StakeModal from "./StakeModal";
+import StakingModal from "./StakingModal";
 
 import TokenBadge from "../../components/TokenBadge";
 
@@ -21,7 +21,7 @@ function Home(): React.ReactElement {
   const [isLoadingOverview, setIsLoadingOverview] = useState<boolean>(false);
 
   const [registerModalVisible, setRegisterModalVisible] = useState<boolean>(false);
-  const [stakeModalVisible, setStakeModalVisible] = useState<boolean>(false);
+  const [stakingModalVisible, setStakingModalVisible] = useState<boolean>(false);
 
   const [numberAppchains, setNumberAppchains] = useState<number>(0);
   const [miniumStakingAmount, setMiniumStakingAmount] = useState<number>(0);
@@ -96,22 +96,29 @@ function Home(): React.ReactElement {
         return (
           <div>
             {
-              window.accountId && window.accountId == founder_id && status == "Frozen" && 
-              <Button type="primary" onClick={() => activeAppchain(fields.id)} loading={activing}>Active</Button>
-            }
-            {
-              window.accountId && (
-                validators.some(v => v.account_id == window.accountId) ?
-                <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
-                  <Button type="link" loading={unstaking}>Unstake</Button> 
-                </Popconfirm>
-                :
-                <Button onClick={() => {
-                  setAppchainId(fields.id);
-                  toggleStakeModalVisible();
-                }} type="link">Stake</Button>
+              window.accountId &&
+              (
+                window.accountId == founder_id ?
+                (
+                  status == "Frozen" && 
+                  <Button type="primary" onClick={() => activeAppchain(fields.id)} loading={activing}>Active</Button>
+                ) :
+                <Button onClick={() => { setAppchainId(fields.id); toggleStakingModalVisible(); }} type="link">Staking</Button>
+                // (
+                //   validators.some(v => v.account_id == window.accountId) ?
+                //   (
+                //     <Popconfirm onConfirm={() => unstake(fields.id)} title="Are you sure to unstake?">
+                //       <Button type="link" loading={unstaking}>Unstake</Button> 
+                //     </Popconfirm>
+                //   ) :
+                //   <Button onClick={() => {
+                //     setAppchainId(fields.id);
+                //     toggleStakingModalVisible();
+                //   }} type="link">Stake</Button>
+                // )
               )
             }
+            
             <span style={{ marginLeft: '10px' }}><Link to={`/appchain/${id}`}>Detail</Link></span>
             
           </div>
@@ -125,9 +132,9 @@ function Home(): React.ReactElement {
     setRegisterModalVisible(!registerModalVisible);
   }, [registerModalVisible]);
 
-  const toggleStakeModalVisible = useCallback(() => {
-    setStakeModalVisible(!stakeModalVisible);
-  }, [stakeModalVisible]);
+  const toggleStakingModalVisible = useCallback(() => {
+    setStakingModalVisible(!stakingModalVisible);
+  }, [stakingModalVisible]);
 
   const getAppchains = useCallback(() => {
     setIsLoadingList(true);
@@ -188,7 +195,7 @@ function Home(): React.ReactElement {
 
   }
 
-  const onStake = function(values) {
+  const onStaking = function(values) {
     const { appchainId, validatorId, offchainWorkerId, stakeBalance } = values;
     
     window.contract.stake(
@@ -204,7 +211,7 @@ function Home(): React.ReactElement {
       window.location.reload();
     }).catch((err) => {
       message.error(err.toString());
-      setStakeModalVisible(false);
+      setStakingModalVisible(false);
     });
   }
 
@@ -222,7 +229,7 @@ function Home(): React.ReactElement {
     }).catch((err) => {
       setUnstaking(false);
       message.error(err.toString());
-      setStakeModalVisible(false);
+      setStakingModalVisible(false);
     });
   }
 
@@ -269,7 +276,7 @@ function Home(): React.ReactElement {
         </Card>
       </div>
       <RegisterModal visible={registerModalVisible} onCancel={toggleRegisterModalVisible} onOk={onRegister} />
-      <StakeModal appchainId={appchainId} visible={stakeModalVisible} onCancel={toggleStakeModalVisible} onOk={onStake} />
+      <StakingModal appchainId={appchainId} visible={stakingModalVisible} onCancel={toggleStakingModalVisible} onOk={onStaking} />
     </>
   );
 }

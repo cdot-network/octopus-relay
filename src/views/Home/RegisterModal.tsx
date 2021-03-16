@@ -64,7 +64,7 @@ function RegisterModal({ visible, onCancel, onOk }): React.ReactElement {
             <Form.Item name="runtimeHash" label="Runtime Hash">
               <Input placeholder="please input the runtime hash" />
             </Form.Item>
-            <Form.Item name="bondTokenAmount" label="Bond Token Amount">
+            <Form.Item name="bondTokenAmount" label="Bond Token">
               <Input placeholder="The amount you want to stake for your chain" type="number" addonAfter={<TokenBadge />} />
             </Form.Item>
             <Form.Item wrapperCol={{ offset: 8, span: 16 }}>

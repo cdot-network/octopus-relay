@@ -14,7 +14,7 @@ function Appchain(): React.ReactElement {
   
   const [appchain, setAppchain] = useState<any>();
 
-  const [isLoadingValidators, setIsLoadingValidators] = useState<boolean>(true);
+  const [isLoadingValidators, setIsLoadingValidators] = useState<boolean>(false);
   const [currValidatorSetIdx, setCurrValidatorSetIdx] = useState<number>(0);
   const [appchainValidatorIdex, setAppchainValidatorIdx] = useState<number>(0);
   const [validatorSet, setValidatorSet] = useState<any>();
@@ -27,6 +27,7 @@ function Appchain(): React.ReactElement {
     {
       title: "Appchain Validator Id",
       dataIndex: "id",
+      key: "id",
     },
     {
       title: "Weight",
@@ -57,9 +58,10 @@ function Appchain(): React.ReactElement {
     });
   }, [id]);
 
-  const getValidators = function(appchaiId, idx) {
+  const getValidators = function(idx) {
+   
     setIsLoadingValidators(true);
-    window.contract.get_validator_set({ appchain_id: appchaiId, index: idx })
+    window.contract.get_validator_set({ appchain_id: appchain.id, index: idx })
       .then(set => {
         setIsLoadingValidators(false);
         setValidatorSet(set);
@@ -71,9 +73,11 @@ function Appchain(): React.ReactElement {
   }
 
   useEffect(() => {
-    if (!appchain) return;
-    getValidators(appchain.id, currValidatorSetIdx);
-  }, [appchain, currValidatorSetIdx]);
+    if (currValidatorSetIdx == 0) {
+      return setValidatorSet([]);
+    }
+    getValidators(currValidatorSetIdx);
+  }, [currValidatorSetIdx]);
 
   const onPrevIndex = useCallback(() => {
     if (currValidatorSetIdx > 0) {
