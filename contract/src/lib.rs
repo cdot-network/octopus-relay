@@ -542,11 +542,12 @@ impl OctopusRelay {
 
         // Compare sorted array
         if !changed {
-            
-            for (i, v) in appchain.validators.iter().enumerate() {
-                let default_validator = Validator::default();
-                let tv = validator_set.validators.get(i).unwrap_or(&default_validator);
-                if tv.account_id != v.account_id {
+            let max_index = appchain.validators.len().max(validator_set.validators.len());
+            let default_validator = Validator::default();
+            for i in 0..max_index {
+                let v = validator_set.validators.get(i).unwrap_or(&default_validator);
+                let av = appchain.validators.get(i).unwrap_or(&default_validator);
+                if av.account_id != v.account_id {
                     changed = true;
                     validator_set.validators = appchain.validators.clone();
                     break;
