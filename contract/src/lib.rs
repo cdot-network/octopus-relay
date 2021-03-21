@@ -79,7 +79,7 @@ impl Default for Validator {
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorSet {
     appchain_id: u32,
-    validator_set_index: u32,
+    sequence_number: u32,
     validators: Vec<Validator>,
 }
 
@@ -194,7 +194,7 @@ impl OctopusRelay {
                 let mut validator_hash_map = HashMap::new();
                 validator_hash_map.insert(0, ValidatorSet {
                     appchain_id,
-                    validator_set_index: 0,
+                    sequence_number: 0,
                     validators: vec![],
                 });
 
@@ -240,10 +240,10 @@ impl OctopusRelay {
         self.appchains.get(&appchain_id).cloned()
     }
 
-    pub fn get_validator_set(&self, appchain_id: u32, index: u32) -> Option<ValidatorSet> {
+    pub fn get_validator_set(&self, appchain_id: u32, seq_num: u32) -> Option<ValidatorSet> {
         let appchain = self.appchains.get(&appchain_id).expect("Appchain not found");
 
-        appchain.validator_set.get(&index).cloned()
+        appchain.validator_set.get(&seq_num).cloned()
     }
 
     // Returns the appchain current validator_set index
@@ -553,7 +553,7 @@ impl OctopusRelay {
 
         // Update state
         if changed {
-            validator_set.validator_set_index += 1;
+            validator_set.sequence_number += 1;
 
             appchain.validator_set.insert(appchain_curr_validator_set_idx + 1, validator_set);
             self.appchains.insert(appchain_id, appchain);
