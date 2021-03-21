@@ -16,20 +16,20 @@ function RegisterModal({ visible, onCancel, onOk }): React.ReactElement {
     onOk(values);
   }, []);
 
-  useEffect(() => {
-    if (visible) {
-      setCheckingAllowance(true);
-      window.tokenContract.get_allowance({
-        owner_id: window.accountId,
-        escrow_account_id: window.contractName
-      }).then((allowance) => {
-        setCheckingAllowance(false);
-        if (allowance == 0) {
-          setNeedIncrementsAllowance(true);
-        }
-      });
-    }
-  }, [visible]);
+  // useEffect(() => {
+  //   if (visible) {
+  //     setCheckingAllowance(true);
+  //     window.tokenContract.get_allowance({
+  //       owner_id: window.accountId,
+  //       escrow_account_id: window.contractName
+  //     }).then((allowance) => {
+  //       setCheckingAllowance(false);
+  //       if (allowance == 0) {
+  //         setNeedIncrementsAllowance(true);
+  //       }
+  //     });
+  //   }
+  // }, [visible]);
 
   const incrementsAllowance = function() {
     window.tokenContract.inc_allowance(

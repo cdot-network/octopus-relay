@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use near_sdk::{
     wee_alloc, env, near_bindgen, AccountId, 
-    Balance, PromiseResult, BlockHeight,
+    Balance, Promise, PromiseResult, BlockHeight,
 };
 
 #[global_allocator]
@@ -122,7 +122,6 @@ impl OctopusRelay {
     #[init]
     pub fn new(owner: AccountId, appchain_minium_validators: u32, minium_staking_amount: u64) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
-
         Self {
             owner,
             appchains: HashMap::default(),
@@ -144,36 +143,82 @@ impl OctopusRelay {
 
         let deposit = env::attached_deposit();
 
-        // Cross-contract call to transfer OCT token
-        let promise_transfer = env::promise_create(
-            TOKEN_ACCOUNT_ID.to_string(),
-            b"transfer_from", 
+        // Cross-contract to increments allowance
+        Promise::new(TOKEN_ACCOUNT_ID.to_string()).function_call(
+            "inc_allowance".into(), 
+            json!({ 
+                "escrow_account_id": env::current_account_id(), 
+                "amount": bond_tokens.to_string()
+            }).to_string().into(),
+            deposit,
+            SINGLE_CALL_GAS,
+        ).then(Promise::new(TOKEN_ACCOUNT_ID.to_string()).function_call(
+            "transfer_from".into(), 
             json!({ 
                 "owner_id": account_id,
                 "new_owner_id": env::current_account_id(), 
                 "amount": bond_tokens.to_string()
-            }).to_string().as_bytes(),
+            }).to_string().into(),
             deposit,
             SINGLE_CALL_GAS,
-        );
-
-        // Check transfer token result and register appchain
-        let promise_register = env::promise_then(
-            promise_transfer,
-            env::current_account_id(),
-            b"check_transfer_and_register",
+        )).then(Promise::new(env::current_account_id()).function_call(
+            "check_transfer_and_register".into(), 
             json!({
                 "account_id": account_id,
                 "appchain_name": appchain_name,
                 "runtime_url": runtime_url,
                 "runtime_hash": runtime_hash,
                 "bond_tokens": bond_tokens,
-            }).to_string().as_bytes(),
+            }).to_string().into(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
-        );
+        ));
+        //     {
 
-        env::promise_return(promise_register);
+
+        //     // Cross-contract call to transfer OCT token
+        //     let promise_transfer = env::promise_create(
+        //         TOKEN_ACCOUNT_ID.to_string(),
+        //         b"transfer_from", 
+        //         json!({ 
+        //             "owner_id": account_id,
+        //             "new_owner_id": env::current_account_id(), 
+        //             "amount": bond_tokens.to_string()
+        //         }).to_string().as_bytes(),
+        //         deposit,
+        //         SINGLE_CALL_GAS,
+        //     );
+
+        //     // Check transfer token result and register appchain
+        //     let promise_register = env::promise_then(
+        //         promise_transfer,
+        //         env::current_account_id(),
+        //         b"check_transfer_and_register",
+        //         json!({
+        //             "account_id": account_id,
+        //             "appchain_name": appchain_name,
+        //             "runtime_url": runtime_url,
+        //             "runtime_hash": runtime_hash,
+        //             "bond_tokens": bond_tokens,
+        //         }).to_string().as_bytes(),
+        //         NO_DEPOSIT,
+        //         SINGLE_CALL_GAS,
+        //     );
+
+        //     env::promise_return(promise_register)
+        // });
+        // let promise_inc_allowance = env::promise_create(
+        //     TOKEN_ACCOUNT_ID.to_string(),
+        //     b"inc_allowance", 
+        //     json!({ 
+        //         "escrow_account_id": env::current_account_id(), 
+        //         "amount": bond_tokens.to_string()
+        //     }).to_string().as_bytes(),
+        //     deposit,
+        //     SINGLE_CALL_GAS,
+        // );
+
+        
     }
 
     pub fn check_transfer_and_register(
@@ -186,8 +231,6 @@ impl OctopusRelay {
     ) {
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                env::log(b"Transfer token successful, start to register");
-
                 let appchain_id = self.appchains.len() as u32;
 
                 // Default validator set
@@ -259,8 +302,7 @@ impl OctopusRelay {
         id: String,
         ocw_id: String,
         amount: u64,
-    ) {
-        
+    ) {    
         let account_id = env::signer_account_id();
         let deposit = env::attached_deposit();
 
@@ -313,8 +355,6 @@ impl OctopusRelay {
     ) {
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                env::log(b"Transfer token successful, start to staking");
-
                 let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
         
                 for v in appchain.validators.iter() {
@@ -396,8 +436,6 @@ impl OctopusRelay {
     ) {
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                env::log(b"Transfer token successful, start to staking_more");
-
                 let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
                 
                 let mut found = false;
@@ -425,11 +463,7 @@ impl OctopusRelay {
     }
 
     pub fn unstaking(&mut self, appchain_id: u32) {
-        
         let account_id = env::signer_account_id();
-        
-        env::log(format!("Account '{}' unstaking", account_id).as_bytes());
-
         let appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
      
         let validator = appchain.validators.iter().find(|v| v.account_id == account_id).expect("You are not staked on the appchain");
@@ -467,7 +501,6 @@ impl OctopusRelay {
     pub fn check_transfer_and_unstaking(&mut self, appchain_id: u32, account_id: AccountId, amount: u64) {
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                env::log(format!("Transfer token successful, start to unstaking, account_id: {}", account_id).as_bytes());
                 let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
 
                 // Remove the validator
