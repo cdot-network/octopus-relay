@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use near_sdk::{
     wee_alloc, env, near_bindgen, AccountId, 
-    Balance, Promise, PromiseResult, BlockHeight,
+    Balance, PromiseResult, BlockHeight,
 };
 
 #[global_allocator]
@@ -78,7 +78,6 @@ impl Default for Validator {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorSet {
-    appchain_id: u32,
     sequence_number: u32,
     validators: Vec<Validator>,
 }
@@ -143,82 +142,36 @@ impl OctopusRelay {
 
         let deposit = env::attached_deposit();
 
-        // Cross-contract to increments allowance
-        Promise::new(TOKEN_ACCOUNT_ID.to_string()).function_call(
-            "inc_allowance".into(), 
-            json!({ 
-                "escrow_account_id": env::current_account_id(), 
-                "amount": bond_tokens.to_string()
-            }).to_string().into(),
-            deposit,
-            SINGLE_CALL_GAS,
-        ).then(Promise::new(TOKEN_ACCOUNT_ID.to_string()).function_call(
-            "transfer_from".into(), 
+        // Cross-contract call to transfer OCT token
+        let promise_transfer = env::promise_create(
+            TOKEN_ACCOUNT_ID.to_string(),
+            b"transfer_from", 
             json!({ 
                 "owner_id": account_id,
                 "new_owner_id": env::current_account_id(), 
                 "amount": bond_tokens.to_string()
-            }).to_string().into(),
+            }).to_string().as_bytes(),
             deposit,
             SINGLE_CALL_GAS,
-        )).then(Promise::new(env::current_account_id()).function_call(
-            "check_transfer_and_register".into(), 
+        );
+
+        // Check transfer token result and register appchain
+        let promise_register = env::promise_then(
+            promise_transfer,
+            env::current_account_id(),
+            b"check_transfer_and_register",
             json!({
                 "account_id": account_id,
                 "appchain_name": appchain_name,
                 "runtime_url": runtime_url,
                 "runtime_hash": runtime_hash,
                 "bond_tokens": bond_tokens,
-            }).to_string().into(),
+            }).to_string().as_bytes(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
-        ));
-        //     {
+        );
 
-
-        //     // Cross-contract call to transfer OCT token
-        //     let promise_transfer = env::promise_create(
-        //         TOKEN_ACCOUNT_ID.to_string(),
-        //         b"transfer_from", 
-        //         json!({ 
-        //             "owner_id": account_id,
-        //             "new_owner_id": env::current_account_id(), 
-        //             "amount": bond_tokens.to_string()
-        //         }).to_string().as_bytes(),
-        //         deposit,
-        //         SINGLE_CALL_GAS,
-        //     );
-
-        //     // Check transfer token result and register appchain
-        //     let promise_register = env::promise_then(
-        //         promise_transfer,
-        //         env::current_account_id(),
-        //         b"check_transfer_and_register",
-        //         json!({
-        //             "account_id": account_id,
-        //             "appchain_name": appchain_name,
-        //             "runtime_url": runtime_url,
-        //             "runtime_hash": runtime_hash,
-        //             "bond_tokens": bond_tokens,
-        //         }).to_string().as_bytes(),
-        //         NO_DEPOSIT,
-        //         SINGLE_CALL_GAS,
-        //     );
-
-        //     env::promise_return(promise_register)
-        // });
-        // let promise_inc_allowance = env::promise_create(
-        //     TOKEN_ACCOUNT_ID.to_string(),
-        //     b"inc_allowance", 
-        //     json!({ 
-        //         "escrow_account_id": env::current_account_id(), 
-        //         "amount": bond_tokens.to_string()
-        //     }).to_string().as_bytes(),
-        //     deposit,
-        //     SINGLE_CALL_GAS,
-        // );
-
-        
+        env::promise_return(promise_register);
     }
 
     pub fn check_transfer_and_register(
@@ -236,7 +189,6 @@ impl OctopusRelay {
                 // Default validator set
                 let mut validator_hash_map = HashMap::new();
                 validator_hash_map.insert(0, ValidatorSet {
-                    appchain_id,
                     sequence_number: 0,
                     validators: vec![],
                 });
