@@ -179,7 +179,7 @@ function createWebpack (ENV, context) {
       chunkFilename: '[name].[chunkhash:8].js',
       filename: '[name].[hash:8].js',
       globalObject: '(typeof self !== \'undefined\' ? self : this)',
-      path: path.join(context, 'build'),
+      path: path.join(context, 'dist'),
       publicPath: ''
     },
     performance: {
@@ -206,7 +206,7 @@ function createWebpack (ENV, context) {
     },
     watch: !isProd,
     watchOptions: {
-      ignored: ['.yarn', /build/, /node_modules/]
+      ignored: ['.yarn', /dist/, /node_modules/]
     }
   };
 }
