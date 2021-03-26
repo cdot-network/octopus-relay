@@ -1,4 +1,4 @@
-Octopush Relay Smart Contract
+octopus-relay Smart Contract
 ==================
 
 A [smart contract] written in [Rust] for an app initialized with [create-near-app]

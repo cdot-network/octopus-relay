@@ -1,5 +1,6 @@
+const CONTRACT_NAME = process.env.CONTRACT_NAME ||'octopus-relay'
 
-function getConfig(env, CONTRACT_NAME) {
+function getConfig(env) {
   switch (env) {
 
   case 'production':
@@ -21,7 +22,6 @@ function getConfig(env, CONTRACT_NAME) {
       walletUrl: 'https://wallet.testnet.near.org',
       helperUrl: 'https://helper.testnet.near.org',
       explorerUrl: 'https://explorer.testnet.near.org',
-      tokenContract: "dev-1615435740118-2637667"
     }
   case 'betanet':
     return {
@@ -60,4 +60,4 @@ function getConfig(env, CONTRACT_NAME) {
   }
 }
 
-export default getConfig
+module.exports = getConfig
