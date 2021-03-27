@@ -5,7 +5,8 @@ import getConfig from './config'
 
 const nearConfig = getConfig(
   process.env.NODE_ENV || 'development',
-  process.env.CONTRACT_NAME
+  process.env.CONTRACT_NAME,
+  process.OCTOPUS_CONTRACT_NAME
 )
 
 // Initialize contract & set global variables

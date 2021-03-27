@@ -1,5 +1,5 @@
 
-function getConfig(env, CONTRACT_NAME) {
+function getConfig(env, CONTRACT_NAME, OCTOPUS_CONTRACT_NAME) {
   switch (env) {
 
   case 'production':
@@ -7,7 +7,7 @@ function getConfig(env, CONTRACT_NAME) {
     return {
       networkId: 'mainnet',
       nodeUrl: 'https://rpc.mainnet.near.org',
-      contractName: CONTRACT_NAME,
+      contractName: OCTOPUS_CONTRACT_NAME || CONTRACT_NAME,
       walletUrl: 'https://wallet.near.org',
       helperUrl: 'https://helper.mainnet.near.org',
       explorerUrl: 'https://explorer.mainnet.near.org',
