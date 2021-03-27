@@ -216,7 +216,7 @@ function Home(): React.ReactElement {
             <Statistic title="Total Appchains" value={numberAppchains} />
           </Col>
           <Col span={8}>
-            <Statistic title="Staked / Total Balance"  value={stakedBalance} suffix={<span>/{totalBalance} <TokenBadge /></span>} />
+            <Statistic title="Staked"  value={stakedBalance} suffix={<TokenBadge />} />
           </Col>
           <Col span={8}>
             <Statistic title="Block Height" value={currBlock} />

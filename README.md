@@ -29,6 +29,9 @@ Now you'll have a local development environment backed by the NEAR TestNet! Runn
 ## Evironment Variables
 
 OCT_NETWORK (default is `testnet`)
+
 OCT_RELAY_CONTRACT_NAME (default is `dev-1616819063071-1140774` or `neardev/dev-account`)
+
 TOKEN_CONTRACT_NAME (default is `dev-1615435740118-2637667`)
+
 
