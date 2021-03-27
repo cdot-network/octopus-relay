@@ -32,6 +32,6 @@ OCT_NETWORK (default is `testnet`)
 
 OCT_RELAY_CONTRACT_NAME (default is `dev-1616819063071-1140774` or `neardev/dev-account`)
 
-TOKEN_CONTRACT_NAME (default is `dev-1615435740118-2637667`)
+OCT_TOKEN_CONTRACT_NAME (default is `dev-1615435740118-2637667`)
 
 
