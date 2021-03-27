@@ -1,13 +1,6 @@
 //@ts-nocheck
 
 import { connect, Contract, keyStores, WalletConnection } from 'near-api-js'
-import getConfig from './config'
-
-const nearConfig = getConfig(
-  process.env.NODE_ENV || 'development',
-  process.env.CONTRACT_NAME,
-  process.OCTOPUS_CONTRACT_NAME
-)
 
 // Initialize contract & set global variables
 export async function initContract() {
@@ -55,6 +48,6 @@ export function login() {
   // the private key in localStorage.
   window.walletConnection.requestSignIn(
     nearConfig.contractName,
-    "Cdot Relay"
+    "Octopus Relay"
   );
 }

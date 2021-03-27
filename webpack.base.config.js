@@ -41,7 +41,7 @@ function createWebpack (ENV, context) {
       liveReload: false, // explict off, overrides hmr
       port: 3000,
       progress: false, // since we have hmr off, disable
-      static: path.join(process.cwd(), '/build')
+      static: path.join(process.cwd(), '/dist')
     })
   );
 

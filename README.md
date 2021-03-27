@@ -13,3 +13,22 @@ To run this project locally:
 
 Now you'll have a local development environment backed by the NEAR TestNet! Running `yarn dev` will tell you the URL you can visit in your browser to see the app.
 
+## Development
+
+`yarn dev`
+
+
+## Build Web
+
+`yarn build:web`
+
+## Build Contract
+
+`yarn build:contract:debug`
+
+## Evironment Variables
+
+OCT_NETWORK (default is `testnet`)
+OCT_RELAY_CONTRACT_NAME (default is `dev-1616819063071-1140774` or `neardev/dev-account`)
+TOKEN_CONTRACT_NAME (default is `dev-1615435740118-2637667`)
+
