@@ -1,8 +1,6 @@
-Octopus Relay
-==========
+# Octopus Relay
 
-Quick Start
-===========
+# Quick Start
 
 To run this project locally:
 
@@ -17,7 +15,6 @@ Now you'll have a local development environment backed by the NEAR TestNet! Runn
 
 `yarn dev`
 
-
 ## Build Web
 
 `yarn build:web`
@@ -30,8 +27,6 @@ Now you'll have a local development environment backed by the NEAR TestNet! Runn
 
 OCT_NETWORK (default is `testnet`)
 
-OCT_RELAY_CONTRACT_NAME (default is `dev-1616819063071-1140774` or `neardev/dev-account`)
+OCT_RELAY_CONTRACT_NAME (default is `dev-1617174393394-9371007` or `neardev/dev-account`)
 
-OCT_TOKEN_CONTRACT_NAME (default is `dev-1615435740118-2637667`)
-
-
+OCT_TOKEN_CONTRACT_NAME (default is `dev-1616962983544-1322706`)

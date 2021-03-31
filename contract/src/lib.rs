@@ -1,18 +1,18 @@
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::serde_json::{json};
-use std::collections::HashMap;
-
+use near_sdk::serde_json::json;
 use near_sdk::{
-    wee_alloc, env, near_bindgen, AccountId, 
-    Balance, PromiseResult, BlockHeight,
+    env, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight, PromiseOrValue,
+    PromiseResult,
 };
+use std::collections::HashMap;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-pub const TOKEN_ACCOUNT_ID: &str = "dev-1615435740118-2637667";
+pub const TOKEN_ACCOUNT_ID: &str = "dev-1616962983544-1322706";
 
 const NO_DEPOSIT: Balance = 0;
 const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
@@ -55,10 +55,10 @@ pub struct Validator {
     account_id: String,
     id: String,
     ocw_id: String,
-    weight: u64,
-    staked_amount: u64,
+    weight: u128,
+    staked_amount: u128,
     block_height: BlockHeight,
-    delegations: Vec<Delegation>
+    delegations: Vec<Delegation>,
 }
 
 impl Default for Validator {
@@ -70,7 +70,7 @@ impl Default for Validator {
             weight: 0,
             staked_amount: 0,
             block_height: 0,
-            delegations: vec![]
+            delegations: vec![],
         }
     }
 }
@@ -90,7 +90,7 @@ pub struct Appchain {
     appchain_name: String,
     runtime_url: String,
     runtime_hash: String,
-    bond_tokens: u64,
+    bond_tokens: u128,
     validator_set: HashMap<u32, ValidatorSet>,
     validators: Vec<Validator>,
     status: AppchainStatus,
@@ -105,8 +105,8 @@ pub struct OctopusRelay {
     owner: AccountId,
     appchains: HashMap<u32, Appchain>,
     appchain_minium_validators: u32,
-    minium_staking_amount: u64,
-    total_staked_balance: u64,
+    minium_staking_amount: u128,
+    total_staked_balance: u128,
 }
 
 impl Default for OctopusRelay {
@@ -117,9 +117,12 @@ impl Default for OctopusRelay {
 
 #[near_bindgen]
 impl OctopusRelay {
-
     #[init]
-    pub fn new(owner: AccountId, appchain_minium_validators: u32, minium_staking_amount: u64) -> Self {
+    pub fn new(
+        owner: AccountId,
+        appchain_minium_validators: u32,
+        minium_staking_amount: u128,
+    ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
         Self {
             owner,
@@ -129,87 +132,96 @@ impl OctopusRelay {
             minium_staking_amount,
         }
     }
-    
-    #[payable]
-    pub fn register_appchain(
-        &mut self, 
-        appchain_name: String, 
-        runtime_url: String,
-        runtime_hash: String,
-        bond_tokens: u64,
-    ) {
-        let account_id = env::signer_account_id();
 
-        let deposit = env::attached_deposit();
-
-        // Cross-contract call to transfer OCT token
-        let promise_transfer = env::promise_create(
-            TOKEN_ACCOUNT_ID.to_string(),
-            b"transfer_from", 
-            json!({ 
-                "owner_id": account_id,
-                "new_owner_id": env::current_account_id(), 
-                "amount": bond_tokens.to_string()
-            }).to_string().as_bytes(),
-            deposit,
-            SINGLE_CALL_GAS,
+    pub fn ft_on_transfer(
+        &mut self,
+        sender_id: ValidAccountId,
+        amount: U128,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        // Verifying that we were called by fungible token contract that we expect.
+        assert_eq!(
+            &env::predecessor_account_id(),
+            TOKEN_ACCOUNT_ID,
+            "Only supports the OCT token contract"
+        );
+        log!(
+            "in {} tokens from @{} ft_on_transfer, msg = {}",
+            amount.0,
+            sender_id.as_ref(),
+            msg
         );
 
-        // Check transfer token result and register appchain
-        let promise_register = env::promise_then(
-            promise_transfer,
-            env::current_account_id(),
-            b"check_transfer_and_register",
-            json!({
-                "account_id": account_id,
-                "appchain_name": appchain_name,
-                "runtime_url": runtime_url,
-                "runtime_hash": runtime_hash,
-                "bond_tokens": bond_tokens,
-            }).to_string().as_bytes(),
-            NO_DEPOSIT,
-            SINGLE_CALL_GAS,
-        );
+        let msg_vec: Vec<String> = msg.split(",").map(|s| s.to_string()).collect();
 
-        env::promise_return(promise_register);
+        match msg_vec.get(0).unwrap().as_str() {
+            "register_appchain" => {
+                assert_eq!(msg_vec.len(), 4, "params length wrong!");
+                self.register_appchain(
+                    msg_vec.get(1).unwrap().to_string(),
+                    msg_vec.get(2).unwrap().to_string(),
+                    msg_vec.get(3).unwrap().to_string(),
+                    amount.0,
+                );
+                PromiseOrValue::Value(U128::from(0))
+            }
+            "staking" => {
+                assert_eq!(msg_vec.len(), 4, "params length wrong!");
+                self.staking(
+                    msg_vec.get(1).unwrap().parse::<u32>().unwrap(),
+                    msg_vec.get(2).unwrap().to_string(),
+                    msg_vec.get(3).unwrap().to_string(),
+                    amount.0,
+                );
+                PromiseOrValue::Value(U128::from(0))
+            }
+            "staking_more" => {
+                assert_eq!(msg_vec.len(), 2, "params length wrong!");
+                self.staking_more(msg_vec.get(1).unwrap().parse::<u32>().unwrap(), amount.0);
+                PromiseOrValue::Value(U128::from(0))
+            }
+            _ => {
+                log!("Function name not matched, msg = {}", msg);
+                PromiseOrValue::Value(amount)
+            }
+        }
     }
 
-    pub fn check_transfer_and_register(
+    fn register_appchain(
         &mut self,
-        account_id: AccountId,
-        appchain_name: String, 
+        appchain_name: String,
         runtime_url: String,
         runtime_hash: String,
-        bond_tokens: u64,
+        bond_tokens: u128,
     ) {
-        match env::promise_result(0) {
-            PromiseResult::Successful(_) => {
-                let appchain_id = self.appchains.len() as u32;
+        let account_id = env::signer_account_id();
+        let appchain_id = self.appchains.len() as u32;
 
-                // Default validator set
-                let mut validator_hash_map = HashMap::new();
-                validator_hash_map.insert(0, ValidatorSet {
-                    sequence_number: 0,
-                    validators: vec![],
-                });
+        // Default validator set
+        let mut validator_hash_map = HashMap::new();
+        validator_hash_map.insert(
+            0,
+            ValidatorSet {
+                sequence_number: 0,
+                validators: vec![],
+            },
+        );
 
-                let appchain = Appchain {
-                    id: appchain_id,
-                    founder_id: account_id.clone(),
-                    appchain_name: appchain_name.clone(),
-                    runtime_url,
-                    runtime_hash,
-                    bond_tokens,
-                    validator_set: validator_hash_map,
-                    validators: Vec::default(),
-                    status: AppchainStatus::default(),
-                    block_height: env::block_index(),
-                };
-
-                self.appchains.insert(appchain_id, appchain);
-            }
-            _ => panic!("Transfer token failed"),
+        let appchain = Appchain {
+            id: appchain_id,
+            founder_id: account_id.clone(),
+            appchain_name: appchain_name.clone(),
+            runtime_url,
+            runtime_hash,
+            bond_tokens,
+            validator_set: validator_hash_map,
+            validators: Vec::default(),
+            status: AppchainStatus::default(),
+            block_height: env::block_index(),
         };
+
+        self.appchains.insert(appchain_id, appchain);
+        log!("appchain added, appchain_id is {}", appchain_id);
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<&Appchain> {
@@ -217,17 +229,16 @@ impl OctopusRelay {
             .map(|index| self.appchains.get(&index).unwrap())
             .collect()
     }
-    
     pub fn get_num_appchains(&self) -> usize {
         self.appchains.len()
     }
 
     /// Returns the total staking balance.
-    pub fn get_total_staked_balance(&self) -> u64 {
+    pub fn get_total_staked_balance(&self) -> u128 {
         self.total_staked_balance
     }
 
-    pub fn get_minium_staking_amount(&self) -> u64 {
+    pub fn get_minium_staking_amount(&self) -> u128 {
         self.minium_staking_amount
     }
 
@@ -236,199 +247,136 @@ impl OctopusRelay {
     }
 
     pub fn get_validator_set(&self, appchain_id: u32, seq_num: u32) -> Option<ValidatorSet> {
-        let appchain = self.appchains.get(&appchain_id).expect("Appchain not found");
+        let appchain = self
+            .appchains
+            .get(&appchain_id)
+            .expect("Appchain not found");
 
         appchain.validator_set.get(&seq_num).cloned()
     }
 
     // Returns the appchain current validator_set index
     pub fn get_curr_validator_set_index(&self, appchain_id: u32) -> u32 {
-        let appchain = self.appchains.get(&appchain_id).expect("Appchain not found");
+        let appchain = self
+            .appchains
+            .get(&appchain_id)
+            .expect("Appchain not found");
         appchain.validator_set.len() as u32 - 1
     }
 
-    #[payable]
-    pub fn staking(
-        &mut self, 
-        appchain_id: u32, 
-        id: String,
-        ocw_id: String,
-        amount: u64,
-    ) {    
+    fn staking(&mut self, appchain_id: u32, id: String, ocw_id: String, amount: u128) {
         let account_id = env::signer_account_id();
-        let deposit = env::attached_deposit();
 
         // Check amount
-        assert!(amount >= self.minium_staking_amount, "Insufficient staking amount");
+        assert!(
+            amount >= self.minium_staking_amount,
+            "Insufficient staking amount"
+        );
 
         if !self.appchains.contains_key(&appchain_id) {
             panic!("Appchain not found");
         }
-     
-         // Cross-contract call to transfer OCT token
-        let promise_transfer = env::promise_create(
-            TOKEN_ACCOUNT_ID.to_string(),
-            b"transfer_from", 
-            json!({ 
-                "owner_id": account_id, 
-                "new_owner_id": env::current_account_id(), 
-                "amount": amount.to_string(),
-            }).to_string().as_bytes(),
-            deposit,
-            SINGLE_CALL_GAS,
-        );
 
-        // Check transfer token result and staking
-        let promise_staking = env::promise_then(
-            promise_transfer,
-            env::current_account_id(),
-            b"check_transfer_and_staking",
-            json!({
-                "account_id": account_id,
-                "appchain_id": appchain_id,
-                "id": id,
-                "ocw_id": ocw_id,
-                "amount": amount,
-            }).to_string().as_bytes(),
-            NO_DEPOSIT,
-            SINGLE_CALL_GAS,
-        );
-
-        env::promise_return(promise_staking);
-    }
-
-    pub fn check_transfer_and_staking(
-        &mut self,
-        account_id: AccountId,
-        appchain_id: u32, 
-        id: String,
-        ocw_id: String,
-        amount: u64,
-    ) {
-        match env::promise_result(0) {
-            PromiseResult::Successful(_) => {
-                let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
-        
-                for v in appchain.validators.iter() {
-                    assert!(v.account_id != account_id, "You are already staked on the appchain!");
-                }
-
-                appchain.validators.push(Validator {
-                    account_id: account_id.clone(),
-                    id,
-                    ocw_id,
-                    weight: amount,
-                    block_height: env::block_index(),
-                    staked_amount: amount,
-                    delegations: Vec::default(),
-                });
-
-                // Update state
-                self.appchains.insert(appchain_id, appchain);
-                self.total_staked_balance += amount;
-
-                // Check to update validator set
-                self.update_validator_set(appchain_id);
-
-            },
-            _ => panic!("Transfer token failed"),
+        let mut appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
+        for v in appchain.validators.iter() {
+            assert!(
+                v.account_id != account_id,
+                "You are already staked on the appchain!"
+            );
         }
+
+        appchain.validators.push(Validator {
+            account_id: account_id.clone(),
+            id,
+            ocw_id,
+            weight: amount,
+            block_height: env::block_index(),
+            staked_amount: amount,
+            delegations: Vec::default(),
+        });
+
+        // Update state
+        self.appchains.insert(appchain_id, appchain);
+        self.total_staked_balance += amount;
+
+        // Check to update validator set
+        self.update_validator_set(appchain_id);
     }
 
-    #[payable]
-    pub fn staking_more(
-        &mut self, 
-        appchain_id: u32, 
-        amount: u64,
-    ) {
+    fn staking_more(&mut self, appchain_id: u32, amount: u128) {
         let account_id = env::signer_account_id();
-        let deposit = env::attached_deposit();
 
         // Check amount
-        assert!(amount >= self.minium_staking_amount, "Insufficient staking amount");
-
-        let appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
-        appchain.validators.iter().find(|v| v.account_id == account_id).expect("You are not staked on the appchain");
-
-        // Cross-contract call to transfer OCT token
-        let promise_transfer = env::promise_create(
-            TOKEN_ACCOUNT_ID.to_string(),
-            b"transfer_from", 
-            json!({ 
-                "owner_id": account_id, 
-                "new_owner_id": env::current_account_id(), 
-                "amount": amount.to_string(),
-            }).to_string().as_bytes(),
-            deposit,
-            SINGLE_CALL_GAS,
+        assert!(
+            amount >= self.minium_staking_amount,
+            "Insufficient staking amount"
         );
 
-        // Check transfer token result and staking_more
-        let promise_staking_more = env::promise_then(
-            promise_transfer,
-            env::current_account_id(),
-            b"check_transfer_and_staking_more",
-            json!({
-                "account_id": account_id,
-                "appchain_id": appchain_id,
-                "amount": amount,
-            }).to_string().as_bytes(),
-            NO_DEPOSIT,
-            SINGLE_CALL_GAS,
-        );
+        let appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
+        appchain
+            .validators
+            .iter()
+            .find(|v| v.account_id == account_id)
+            .expect("You are not staked on the appchain");
 
-        env::promise_return(promise_staking_more);
-    }
-
-    pub fn check_transfer_and_staking_more(
-        &mut self,
-        account_id: AccountId,
-        appchain_id: u32, 
-        amount: u64,
-    ) {
-        match env::promise_result(0) {
-            PromiseResult::Successful(_) => {
-                let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
-                
-                let mut found = false;
-                for v in appchain.validators.iter_mut() {
-                    if v.account_id == account_id {
-                        v.staked_amount += amount;
-                        v.weight += amount;
-                        found = true;
-                    }
-                }
-
-                if !found {
-                    panic!("You are not staked on the appchain");
-                }
-
-                // Update state
-                self.appchains.insert(appchain_id, appchain);
-                self.total_staked_balance += amount;
-
-                // Check to update validator set
-                self.update_validator_set(appchain_id);
-            },
-            _ => panic!("Transfer token failed"),
+        let mut appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
+        let mut found = false;
+        for v in appchain.validators.iter_mut() {
+            if v.account_id == account_id {
+                v.staked_amount += amount;
+                v.weight += amount;
+                found = true;
+            }
         }
+
+        if !found {
+            panic!("You are not staked on the appchain");
+        }
+
+        // Update state
+        self.appchains.insert(appchain_id, appchain);
+        self.total_staked_balance += amount;
+
+        // Check to update validator set
+        self.update_validator_set(appchain_id);
     }
 
     pub fn unstaking(&mut self, appchain_id: u32) {
         let account_id = env::signer_account_id();
-        let appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
-     
-        let validator = appchain.validators.iter().find(|v| v.account_id == account_id).expect("You are not staked on the appchain");
+        let appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
 
-         // Cross-contract call to transfer OCT token
+        let validator = appchain
+            .validators
+            .iter()
+            .find(|v| v.account_id == account_id)
+            .expect("You are not staked on the appchain");
+
+        // Cross-contract call to transfer OCT token
         let promise_transfer = env::promise_create(
             TOKEN_ACCOUNT_ID.to_string(),
-            b"transfer_from", 
-            json!({ 
-                "owner_id": env::current_account_id(), 
-                "new_owner_id": account_id, 
+            b"ft_transfer",
+            json!({
+                "receiver_id": account_id,
                 "amount": validator.staked_amount.to_string(),
-            }).to_string().as_bytes(),
+            })
+            .to_string()
+            .as_bytes(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
         );
@@ -442,7 +390,9 @@ impl OctopusRelay {
                 "appchain_id": appchain_id,
                 "account_id": account_id,
                 "amount": validator.staked_amount,
-            }).to_string().as_bytes(),
+            })
+            .to_string()
+            .as_bytes(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
         );
@@ -450,10 +400,19 @@ impl OctopusRelay {
         env::promise_return(promise_staking);
     }
 
-    pub fn check_transfer_and_unstaking(&mut self, appchain_id: u32, account_id: AccountId, amount: u64) {
+    pub fn check_transfer_and_unstaking(
+        &mut self,
+        appchain_id: u32,
+        account_id: AccountId,
+        amount: u128,
+    ) {
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
+                let mut appchain = self
+                    .appchains
+                    .get(&appchain_id)
+                    .cloned()
+                    .expect("Appchain not found");
 
                 // Remove the validator
                 appchain.validators.retain(|v| v.account_id != account_id);
@@ -464,26 +423,33 @@ impl OctopusRelay {
 
                 // Check to update validator set
                 self.update_validator_set(appchain_id);
-                
-            },
+            }
             _ => panic!("Transfer token failed"),
         };
-        
     }
 
     pub fn active_appchain(&mut self, appchain_id: u32) {
-        let mut appchain = self.appchains.get(&appchain_id).cloned().expect("Appchain not found");
+        let mut appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
         let account_id = env::signer_account_id();
 
         // Only the appchain founder can do this
-        assert!(account_id == appchain.founder_id, "You're not the appchain founder");
+        assert!(
+            account_id == appchain.founder_id,
+            "You're not the appchain founder"
+        );
 
         // Can only active a frozen appchain
-        assert!(appchain.status == AppchainStatus::Frozen, "Appchain status incorrect");
-        
+        assert!(
+            appchain.status == AppchainStatus::Frozen,
+            "Appchain status incorrect"
+        );
         // Check validators
         assert!(
-            appchain.validators.len() as u32 >= self.appchain_minium_validators, 
+            appchain.validators.len() as u32 >= self.appchain_minium_validators,
             "Insufficient number of appchain validators"
         );
 
@@ -503,7 +469,11 @@ impl OctopusRelay {
         let mut appchain = self.appchains.get(&appchain_id).cloned().unwrap();
 
         let appchain_curr_validator_set_idx = self.get_curr_validator_set_index(appchain_id);
-        let mut validator_set = appchain.validator_set.get(&appchain_curr_validator_set_idx).unwrap().clone();
+        let mut validator_set = appchain
+            .validator_set
+            .get(&appchain_curr_validator_set_idx)
+            .unwrap()
+            .clone();
 
         // Check status
         if appchain.status != AppchainStatus::Active {
@@ -511,7 +481,6 @@ impl OctopusRelay {
         }
 
         let mut changed = false;
-        
         let validators_len = appchain.validators.len() as u32;
         if validators_len < self.appchain_minium_validators {
             appchain.status = AppchainStatus::Frozen;
@@ -523,10 +492,16 @@ impl OctopusRelay {
 
         // Compare sorted array
         if !changed {
-            let max_index = appchain.validators.len().max(validator_set.validators.len());
+            let max_index = appchain
+                .validators
+                .len()
+                .max(validator_set.validators.len());
             let default_validator = Validator::default();
             for i in 0..max_index {
-                let v = validator_set.validators.get(i).unwrap_or(&default_validator);
+                let v = validator_set
+                    .validators
+                    .get(i)
+                    .unwrap_or(&default_validator);
                 let av = appchain.validators.get(i).unwrap_or(&default_validator);
                 if av.account_id != v.account_id {
                     changed = true;
@@ -540,14 +515,14 @@ impl OctopusRelay {
         if changed {
             validator_set.sequence_number += 1;
 
-            appchain.validator_set.insert(appchain_curr_validator_set_idx + 1, validator_set);
+            appchain
+                .validator_set
+                .insert(appchain_curr_validator_set_idx + 1, validator_set);
             self.appchains.insert(appchain_id, appchain);
         }
 
         true
-
     }
-
 }
 
 /*
@@ -562,6 +537,4 @@ impl OctopusRelay {
  *
  */
 #[cfg(test)]
-mod tests {
-    
-}
+mod tests {}
