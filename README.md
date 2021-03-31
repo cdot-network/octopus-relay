@@ -30,3 +30,37 @@ OCT_NETWORK (default is `testnet`)
 OCT_RELAY_CONTRACT_NAME (default is `dev-1617174393394-9371007` or `neardev/dev-account`)
 
 OCT_TOKEN_CONTRACT_NAME (default is `dev-1616962983544-1322706`)
+
+## Usage
+
+### Init
+
+Everytime after deployed, you need run:
+
+**new octopus-ralay**
+
+```
+near call octopus-ralay new '{"owner": "madtest.testnet", "appchain_minium_validators": 2, "minium_staking_amount": 100}' --accountId your_id
+```
+
+**storage deposit**
+
+```
+near call oct_token storage_deposit  '{"account_id": "octopus-ralay"}' --accountId your_id --amount 0.1
+```
+
+### Using
+
+**register_appchain**
+
+Note that there can be no spaces after the comma.
+
+```
+near call oct_token ft_transfer_call '{"receiver_id": "octopus-ralay", "amount": "1000", "msg": "register_appchain,madchain,http://xasx.com,scsadvdfbfvervdsfvdfs"}' --accountId your_id --amount 0.000000000000000000000001
+```
+
+**using wrong function name, will be refunded**
+
+```
+near call oct_token ft_transfer_call '{"receiver_id": "octopus-ralay", "amount": "1000", "msg": "test_wrong_function,testchain,http://test.com,testtesttest"}' --accountId your_id --amount 0.000000000000000000000001
+```
